@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panini WM 2026 Scanner</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --accent: #e8b84b; --text: #f0f0f0; --muted: #7a7f96;
+    --green: #27ae60; --red: #e74c3c; --border: #2e3250; --radius: 12px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; font-size: 15px; }
+
+  /* AUTH SCREEN */
+  .auth-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .auth-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px; width: 100%; max-width: 380px;
+  }
+  .auth-logo { text-align: center; font-size: 48px; margin-bottom: 8px; }
+  .auth-title { text-align: center; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .auth-sub { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  .auth-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+  .auth-tab { flex: 1; padding: 8px; border: none; background: none; color: var(--muted); font-weight: 600; font-size: 13px; border-radius: 7px; cursor: pointer; transition: all .15s; }
+  .auth-tab.active { background: var(--accent); color: #000; }
+  .auth-error { background: rgba(231,76,60,.15); border: 1px solid var(--red); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--red); margin-bottom: 12px; display: none; }
+  .auth-error.show { display: block; }
+
+  /* NAV */
+  nav {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 16px; display: flex; align-items: center; justify-content: space-between;
+    height: 54px; position: sticky; top: 0; z-index: 100;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
+  .nav-brand .badge { background: var(--accent); color: #000; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 20px; }
+  .nav-right { display: flex; align-items: center; gap: 6px; }
+  .nav-user { font-size: 11px; color: var(--muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-tabs { display: flex; gap: 2px; }
+  .nav-tab { background: none; border: none; color: var(--muted); cursor: pointer; padding: 7px 11px; border-radius: 8px; font-size: 12px; font-weight: 500; transition: all .15s; display: flex; align-items: center; gap: 5px; }
+  .nav-tab:hover { background: var(--surface2); color: var(--text); }
+  .nav-tab.active { background: var(--surface2); color: var(--accent); }
+  .nav-tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); display: none; }
+  .nav-tab.has-data .dot { display: block; }
+
+  /* MAIN */
+  main { max-width: 900px; margin: 0 auto; padding: 20px 14px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+  .card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 800; line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-card.green .stat-num { color: var(--green); }
+  .stat-card.amber .stat-num { color: var(--accent); }
+  .stat-card.red .stat-num { color: var(--red); }
+  .stat-card.blue .stat-num { color: #5dade2; }
+
+  /* PROGRESS */
+  .progress-wrap { background: var(--surface2); border-radius: 20px; height: 8px; overflow: hidden; margin-bottom: 5px; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent)); border-radius: 20px; transition: width .4s ease; }
+  .progress-label { font-size: 12px; color: var(--muted); text-align: right; }
+
+  /* SCAN ZONE */
+  .scan-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px; text-align: center; cursor: pointer; transition: all .2s; }
+  .scan-zone:hover { border-color: var(--accent); background: rgba(232,184,75,.04); }
+  .scan-zone.dragover { border-color: var(--accent); background: rgba(232,184,75,.08); }
+  .scan-icon { font-size: 36px; margin-bottom: 8px; }
+
+  /* BUTTONS */
+  .btn { background: var(--accent); color: #000; border: none; padding: 11px 20px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 7px; }
+  .btn:hover { opacity: .88; transform: translateY(-1px); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: var(--red); color: #fff; }
+  .btn.green { background: var(--green); color: #fff; }
+  .btn.sm { padding: 6px 12px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  /* MODE TOGGLE */
+  .mode-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .mode-btn { flex: 1; padding: 10px; background: var(--surface2); border: 2px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all .15s; }
+  .mode-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,184,75,.08); }
+
+  /* QUEUE */
+  .queue-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .queue-item { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+  .queue-thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 5px; flex-shrink: 0; background: var(--bg); }
+  .queue-name { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .queue-status { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700; white-space: nowrap; }
+  .queue-status.waiting  { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+  .queue-status.scanning { background: rgba(232,184,75,.15); color: var(--accent); border: 1px solid var(--accent); }
+  .queue-status.done     { background: rgba(39,174,96,.15); color: var(--green); border: 1px solid var(--green); }
+  .queue-status.error    { background: rgba(231,76,60,.15); color: var(--red); border: 1px solid var(--red); }
+  .queue-result { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+  /* BATCH PROGRESS */
+  .batch-progress-wrap { display: none; margin: 10px 0; }
+  .batch-progress-bar-bg { background: var(--surface2); border-radius: 20px; height: 7px; overflow: hidden; margin-bottom: 4px; }
+  .batch-progress-bar-fill { height: 100%; background: linear-gradient(90deg,var(--accent),var(--green)); border-radius: 20px; transition: width .3s ease; width: 0%; }
+  .batch-progress-label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+
+  /* RESULT CHIPS */
+  .result-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .chip { padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .chip.new { background: rgba(39,174,96,.2); color: var(--green); border: 1px solid var(--green); }
+  .chip.dupe { background: rgba(231,76,60,.2); color: var(--red); border: 1px solid var(--red); }
+
+  /* STICKER GRID */
+  .sticker-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(50px,1fr)); gap: 4px; }
+  .sticker-cell { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; cursor: pointer; transition: all .15s; border: 1.5px solid transparent; position: relative; }
+  .sticker-cell.missing { background: var(--surface2); color: var(--muted); border-color: var(--border); }
+  .sticker-cell.have { background: rgba(39,174,96,.15); color: var(--green); border-color: rgba(39,174,96,.4); }
+  .sticker-cell.dupe { background: rgba(232,184,75,.15); color: var(--accent); border-color: rgba(232,184,75,.4); }
+  .sticker-cell:hover { transform: scale(1.1); z-index: 2; }
+  .dupe-badge { position: absolute; top: -4px; right: -4px; background: var(--accent); color: #000; font-size: 8px; font-weight: 800; width: 13px; height: 13px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+  /* LEGEND */
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; }
+
+  /* FILTER */
+  .filter-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filter-btn { padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* MISSING */
+  .section-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin: 14px 0 6px; }
+  .missing-numbers { display: flex; flex-wrap: wrap; gap: 4px; }
+  .miss-chip { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 3px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all .1s; }
+  .miss-chip:hover { border-color: var(--green); color: var(--green); }
+
+  /* DUPES TABLE */
+  .dupe-table { width: 100%; border-collapse: collapse; }
+  .dupe-table th { text-align: left; padding: 9px 11px; background: var(--surface2); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+  .dupe-table td { padding: 8px 11px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .dupe-table tr:last-child td { border-bottom: none; }
+  .count-badge { background: var(--accent); color: #000; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 800; }
+
+  /* FORMS */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: .5px; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 13px; color: var(--text); font-size: 14px; outline: none; transition: border-color .15s; font-family: var(--font); }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input.mono { font-family: monospace; }
+
+  /* STATUS BADGE */
+  .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .status-badge.ok { background: rgba(39,174,96,.15); color: var(--green); }
+  .status-badge.err { background: rgba(231,76,60,.15); color: var(--red); }
+
+  /* LOG */
+  .scan-log { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--muted); max-height: 110px; overflow-y: auto; font-family: monospace; line-height: 1.6; }
+  .log-line.success { color: var(--green); }
+  .log-line.warn { color: var(--accent); }
+  .log-line.err { color: var(--red); }
+
+  /* SEARCH */
+  .search-bar { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 13px; color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; transition: border-color .15s; }
+  .search-bar:focus { border-color: var(--accent); }
+
+  /* SPINNER */
+  .spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(0,0,0,.25); border-top-color: #000; border-radius: 50%; animation: spin .7s linear infinite; }
+  .spinner.white { border-color: rgba(255,255,255,.25); border-top-color: #fff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CAMERA */
+  .camera-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 999; flex-direction: column; }
+  .camera-modal.open { display: flex; }
+  .video-wrap { position: relative; flex: 1; overflow: hidden; }
+  #camera-video { width: 100%; height: 100%; object-fit: cover; }
+  #camera-canvas { display: none; }
+  .camera-hint-bar { position: absolute; top: 0; left: 0; right: 0; background: rgba(0,0,0,.55); color: rgba(255,255,255,.9); font-size: 13px; font-weight: 600; text-align: center; padding: 12px; pointer-events: none; }
+  .camera-scan-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 16px; font-weight: 700; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
+  .camera-scan-overlay.show { display: flex; }
+  .camera-controls { background: #111; padding: 18px 22px 30px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .shutter-btn { width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; background: rgba(255,255,255,.15); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 28px; transition: all .1s; flex-shrink: 0; }
+  .shutter-btn:active { transform: scale(.9); }
+  .shutter-btn.scanning { border-color: var(--accent); animation: pulse-cam .8s infinite; }
+  @keyframes pulse-cam { 0%,100% { box-shadow: 0 0 0 0 rgba(232,184,75,.5); } 50% { box-shadow: 0 0 0 14px rgba(232,184,75,0); } }
+  .camera-counter { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 20px; padding: 6px 13px; font-size: 13px; font-weight: 700; color: #fff; min-width: 85px; text-align: center; }
+  .camera-close-btn { background: rgba(255,255,255,.12); border: none; border-radius: 50%; width: 46px; height: 46px; color: #fff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .camera-flash-overlay { position: fixed; inset: 0; background: #fff; z-index: 1001; opacity: 0; pointer-events: none; transition: opacity .06s; }
+
+  /* SYNC INDICATOR */
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-left: 6px; }
+  .sync-dot.syncing { background: var(--accent); animation: blink 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); }
+  .empty-icon { font-size: 38px; margin-bottom: 8px; }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 20px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; }
+  .toast { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 15px; font-size: 13px; font-weight: 600; min-width: 200px; animation: slideIn .2s ease; display: flex; align-items: center; gap: 7px; }
+  .toast.success { border-color: var(--green); }
+  .toast.error { border-color: var(--red); }
+  .toast.info { border-color: var(--accent); }
+  @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* LOADING SCREEN */
+  .loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 9000; }
+  .loading-screen.hidden { display: none; }
+
+  /* MOBILE */
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .nav-tabs .nav-tab span:not(.dot) { display: none; }
+    .sticker-grid { grid-template-columns: repeat(auto-fill,minmax(40px,1fr)); }
+    .nav-user { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loading-screen">
+  <div style="font-size:48px">⚽</div>
+  <div class="spinner white" style="width:28px;height:28px;border-width:3px"></div>
+  <div style="color:var(--muted);font-size:13px">Wird geladen...</div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="auth-screen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo">⚽</div>
+    <div class="auth-title">Panini WM 2026</div>
+    <div class="auth-sub">Scanner & Sammelalbum</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Anmelden</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Registrieren</button>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+
+    <div class="form-group">
+      <label class="form-label">E-Mail</label>
+      <input type="email" class="form-input" id="auth-email" placeholder="name@beispiel.ch" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Passwort</label>
+      <input type="password" class="form-input" id="auth-password" placeholder="Mindestens 6 Zeichen" autocomplete="current-password">
+    </div>
+
+    <button class="btn" style="width:100%;justify-content:center;font-size:15px;padding:13px;" id="auth-btn" onclick="doAuth()">
+      Anmelden
+    </button>
+
+    <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted)" id="auth-switch-text">
+      Noch kein Konto? <a href="#" onclick="switchAuthTab('register');return false;" style="color:var(--accent)">Registrieren</a>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+
+<nav>
+  <div class="nav-brand">
+    ⚽ <span>Panini</span>
+    <span class="badge">WM 2026</span>
+    <span class="sync-dot" id="sync-dot" title="Sync-Status"></span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('scan')" id="tab-scan">📷 <span>Scan</span></button>
+    <button class="nav-tab" onclick="showPage('collection')" id="tab-collection">📚 <span>Sammlung</span> <span class="dot"></span></button>
+    <button class="nav-tab" onclick="showPage('missing')" id="tab-missing">❌ <span>Fehlend</span> <span class="dot"></span></button>
+    <button class="nav-tab" onclick="showPage('dupes')" id="tab-dupes">🔁 <span>Doppelte</span> <span class="dot"></span></button>
+    <button class="nav-tab" onclick="showPage('admin')" id="tab-admin">⚙️ <span>Admin</span></button>
+  </div>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-user"></span>
+    <button class="btn secondary sm" onclick="doLogout()">Logout</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- SCAN PAGE -->
+  <div class="page active" id="page-scan">
+    <div class="stats-row">
+      <div class="stat-card green"><div class="stat-num" id="stat-have">0</div><div class="stat-label">Gesammelt</div></div>
+      <div class="stat-card red"><div class="stat-num" id="stat-missing">670</div><div class="stat-label">Fehlend</div></div>
+      <div class="stat-card amber"><div class="stat-num" id="stat-dupes">0</div><div class="stat-label">Doppelte</div></div>
+      <div class="stat-card blue"><div class="stat-num" id="stat-pct">0%</div><div class="stat-label">Fortschritt</div></div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="progress-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">0 / 670 Sticker</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Scan-Modus</div>
+      <div class="mode-toggle">
+        <div class="mode-btn active" id="mode-new" onclick="setMode('new')">➕ Neue Sticker<br><small style="font-weight:400;font-size:11px">Was hab ich gesammelt?</small></div>
+        <div class="mode-btn" id="mode-have" onclick="setMode('have')">📖 Heft scannen<br><small style="font-weight:400;font-size:11px">Was klebt bereits drin?</small></div>
+      </div>
+
+      <input type="file" accept="image/*" multiple id="file-gallery" style="display:none" onchange="handleFiles(this.files)">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <button class="btn" style="justify-content:center;padding:16px 10px" onclick="openLiveCamera()">📷 Live-Kamera</button>
+        <button class="btn secondary" style="justify-content:center;padding:16px 10px" onclick="document.getElementById('file-gallery').click()">📁 Galerie</button>
+      </div>
+
+      <div class="scan-zone" id="scan-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)" onclick="document.getElementById('file-gallery').click()">
+        <div class="scan-icon">🖼️</div>
+        <div style="font-weight:600;font-size:13px;color:var(--muted)">Fotos hier reinziehen (Drag & Drop)</div>
+      </div>
+
+      <div class="batch-progress-wrap" id="batch-progress-wrap">
+        <div class="batch-progress-bar-bg"><div class="batch-progress-bar-fill" id="batch-bar"></div></div>
+        <div class="batch-progress-label"><span id="batch-label-left">Wird gescannt...</span><span id="batch-label-right">0/0</span></div>
+      </div>
+
+      <div class="queue-wrap" id="queue-wrap"></div>
+
+      <div class="btn-row">
+        <button class="btn" id="scan-btn" onclick="startBatchScan()" disabled>🔍 Alle scannen</button>
+        <button class="btn secondary" onclick="openManual()">✏️ Manuell</button>
+        <button class="btn secondary sm" onclick="clearQueue()">✕ Queue</button>
+      </div>
+    </div>
+
+    <div class="card" id="manual-card" style="display:none">
+      <div class="card-title">Manuelle Eingabe</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:10px">Sticker-Nummern 1–670, getrennt durch Komma oder Leerzeichen</div>
+      <textarea id="manual-input" class="form-input" rows="3" placeholder="z.B. 1, 5, 12, 47" style="resize:vertical"></textarea>
+      <div class="btn-row">
+        <button class="btn green" onclick="addManual()">✅ Hinzufügen</button>
+        <button class="btn secondary" onclick="closeManual()">Abbrechen</button>
+      </div>
+    </div>
+
+    <div class="card" id="result-card" style="display:none">
+      <div class="card-title">Scan-Ergebnis</div>
+      <div id="result-summary" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+      <div class="result-chips" id="result-chips"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log</div>
+      <div class="scan-log" id="scan-log"><span class="log-line">Bereit...</span></div>
+    </div>
+  </div>
+
+  <!-- COLLECTION PAGE -->
+  <div class="page" id="page-collection">
+    <div class="card">
+      <div class="card-title">Alle 670 Sticker</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(39,174,96,.3);border:1.5px solid var(--green)"></div>Vorhanden</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(232,184,75,.3);border:1.5px solid var(--accent)"></div>Doppelt</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--surface2);border:1.5px solid var(--border)"></div>Fehlt</div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">Alle</button>
+        <button class="filter-btn" onclick="setFilter('have',this)">✅ Vorhanden</button>
+        <button class="filter-btn" onclick="setFilter('missing',this)">❌ Fehlt</button>
+        <button class="filter-btn" onclick="setFilter('dupe',this)">🔁 Doppelt</button>
+      </div>
+      <div class="sticker-grid" id="sticker-grid"></div>
+    </div>
+  </div>
+
+  <!-- MISSING PAGE -->
+  <div class="page" id="page-missing">
+    <div class="card">
+      <div class="card-title">Fehlende Sticker</div>
+      <input type="text" class="search-bar" placeholder="Nummer suchen..." id="missing-search" oninput="renderMissing()">
+      <div id="missing-count" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
+      <div id="missing-list"><div class="empty-state"><div class="empty-icon">🎉</div>Alle vorhanden!</div></div>
+    </div>
+  </div>
+
+  <!-- DUPES PAGE -->
+  <div class="page" id="page-dupes">
+    <div class="card">
+      <div class="card-title">Doppelte Sticker</div>
+      <div id="dupes-summary" style="font-size:13px;color:var(--muted);margin-bottom:12px"></div>
+      <div id="dupes-list"><div class="empty-state"><div class="empty-icon">🔁</div>Noch keine Doppelten</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Export</div>
+      <div class="btn-row">
+        <button class="btn secondary" onclick="exportList()">📋 Tauschbörse kopieren</button>
+        <button class="btn secondary" onclick="exportJSON()">💾 JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div class="page" id="page-admin">
+    <div class="card">
+      <div class="card-title">Gemini API Key</div>
+      <div class="form-group">
+        <input type="password" class="form-input mono" id="api-key-input" placeholder="AIza...">
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+          <button class="btn sm" onclick="saveApiKey()">💾 Speichern</button>
+          <div id="api-status"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">
+          Kostenlos: <strong>aistudio.google.com</strong> → API Keys → Create<br>
+          🔒 Gespeichert in deinem Browser (localStorage)
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Firebase Konfiguration</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Firebase Config aus der Firebase Console einfügen:<br>
+        <span style="font-size:11px">Project Settings → Your Apps → SDK setup → Config</span>
+      </div>
+      <textarea class="form-input mono" id="firebase-config-input" rows="8" placeholder='{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "...",\n  "storageBucket": "...",\n  "messagingSenderId": "...",\n  "appId": "..."\n}'></textarea>
+      <div class="btn-row">
+        <button class="btn sm" onclick="saveFirebaseConfig()">💾 Speichern & Neu laden</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Konto</div>
+      <div id="account-info" style="font-size:13px;color:var(--muted);margin-bottom:12px"></div>
+      <div class="btn-row">
+        <button class="btn danger sm" onclick="resetAll()">🗑️ Meine Daten löschen</button>
+        <button class="btn secondary sm" onclick="doLogout()">🚪 Logout</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Import / Export</div>
+      <div class="btn-row">
+        <button class="btn secondary" onclick="exportJSON()">💾 JSON exportieren</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+  <!-- LIVE CAMERA -->
+  <div class="camera-modal" id="camera-modal">
+    <div class="video-wrap">
+      <video id="camera-video" autoplay playsinline muted></video>
+      <canvas id="camera-canvas"></canvas>
+      <div class="camera-hint-bar" id="camera-hint">📷 Sticker in den Rahmen — Auslöser drücken</div>
+      <div class="camera-scan-overlay" id="camera-scan-overlay">
+        <span class="spinner white" style="width:30px;height:30px;border-width:3px"></span>
+        KI analysiert...
+      </div>
+    </div>
+    <div class="camera-controls">
+      <div class="camera-counter" id="camera-counter">0 gescannt</div>
+      <button class="shutter-btn" id="shutter-btn" onclick="captureAndScan()">📸</button>
+      <button class="camera-close-btn" onclick="closeLiveCamera()">✕</button>
+    </div>
+  </div>
+  <div class="camera-flash-overlay" id="camera-flash"></div>
+
+</div><!-- /app -->
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+const TOTAL = 670;
+let app, auth, db_fs, currentUser = null;
+let unsubscribeSnapshot = null;
+
+let db = { stickers: {}, mode: 'new' };
+let currentFilter = 'all';
+let isSaving = false;
+let saveTimer = null;
+
+function getFirebaseConfig() {
+  return {
+    apiKey: "AIzaSyAUOfccQ-seMfBIaVl8L9kOQ0svblFI4vI",
+    authDomain: "wm26panini.firebaseapp.com",
+    projectId: "wm26panini",
+    storageBucket: "wm26panini.firebasestorage.app",
+    messagingSenderId: "970685052580",
+    appId: "1:970685052580:web:1c2aecfb892f7ed416d831"
+  };
+}
+
+function initFirebase() {
+  const config = getFirebaseConfig();
+  if (!config) {
+    showLoading(false);
+    showAuthScreen(false);
+    showNoConfigScreen();
+    return;
+  }
+  try {
+    app = initializeApp(config);
+    auth = getAuth(app);
+    db_fs = getFirestore(app);
+    setupAuthListener();
+  } catch(e) {
+    showLoading(false);
+    showToast('Firebase Fehler: ' + e.message, 'error');
+    showAuthScreen(true);
+  }
+}
+
+function showNoConfigScreen() {
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+
+  // Show config-only admin
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('auth-screen').style.display = 'none';
+  showPage('admin');
+  document.querySelector('nav').style.display = 'none';
+  showToast('Firebase Config fehlt — bitte unten eintragen', 'error');
+}
+
+// ============================================================
+// AUTH STATE
+// ============================================================
+function setupAuthListener() {
+  onAuthStateChanged(auth, async (user) => {
+    showLoading(false);
+    if (user) {
+      currentUser = user;
+      document.getElementById('nav-user').textContent = user.email;
+      document.getElementById('account-info').textContent = 'Angemeldet als: ' + user.email;
+      showAuthScreen(false);
+      showApp(true);
+      document.querySelector('nav').style.display = 'flex';
+      await loadFromFirestore();
+      subscribeToFirestore();
+      checkApiKey();
+      updateStats();
+      renderGrid();
+      renderMissing();
+      renderDupes();
+      updateTabDots();
+      log('Angemeldet: ' + user.email, 'success');
+    } else {
+      currentUser = null;
+      if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+      showApp(false);
+      showAuthScreen(true);
+    }
+  });
+}
+
+function showLoading(show) {
+  document.getElementById('loading-screen').classList.toggle('hidden', !show);
+}
+function showAuthScreen(show) {
+  document.getElementById('auth-screen').style.display = show ? 'flex' : 'none';
+}
+function showApp(show) {
+  document.getElementById('app').style.display = show ? 'block' : 'none';
+}
+
+// ============================================================
+// AUTH ACTIONS
+// ============================================================
+let authMode = 'login';
+
+window.switchAuthTab = function(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='register')));
+  document.getElementById('auth-btn').textContent = mode === 'login' ? 'Anmelden' : 'Registrieren';
+  document.getElementById('auth-switch-text').innerHTML = mode === 'login'
+    ? 'Noch kein Konto? <a href="#" onclick="switchAuthTab(\'register\');return false;" style="color:var(--accent)">Registrieren</a>'
+    : 'Bereits registriert? <a href="#" onclick="switchAuthTab(\'login\');return false;" style="color:var(--accent)">Anmelden</a>';
+  document.getElementById('auth-error').classList.remove('show');
+};
+
+window.doAuth = async function() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  const btn   = document.getElementById('auth-btn');
+
+  if (!email || !pass) { showAuthError('E-Mail und Passwort eingeben'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> ...';
+  errEl.classList.remove('show');
+
+  try {
+    if (authMode === 'login') {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } else {
+      await createUserWithEmailAndPassword(auth, email, pass);
+    }
+  } catch(e) {
+    const msgs = {
+      'auth/invalid-email': 'Ungültige E-Mail Adresse',
+      'auth/user-not-found': 'Kein Konto mit dieser E-Mail',
+      'auth/wrong-password': 'Falsches Passwort',
+      'auth/email-already-in-use': 'E-Mail bereits registriert',
+      'auth/weak-password': 'Passwort zu schwach (min. 6 Zeichen)',
+      'auth/invalid-credential': 'E-Mail oder Passwort falsch'
+    };
+    showAuthError(msgs[e.code] || e.message);
+    btn.disabled = false;
+    btn.textContent = authMode === 'login' ? 'Anmelden' : 'Registrieren';
+  }
+};
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+window.doLogout = async function() {
+  await signOut(auth);
+  db.stickers = {};
+  showToast('Abgemeldet', 'info');
+};
+
+// ============================================================
+// FIRESTORE
+// ============================================================
+function userDocRef() {
+  return doc(db_fs, 'users', currentUser.uid);
+}
+
+async function loadFromFirestore() {
+  try {
+    setSyncDot('syncing');
+    const snap = await getDoc(userDocRef());
+    if (snap.exists()) {
+      db.stickers = snap.data().stickers || {};
+    } else {
+      db.stickers = {};
+    }
+    setSyncDot('ok');
+  } catch(e) {
+    setSyncDot('error');
+    log('Ladefehler: ' + e.message, 'err');
+  }
+}
+
+function subscribeToFirestore() {
+  if (unsubscribeSnapshot) unsubscribeSnapshot();
+  unsubscribeSnapshot = onSnapshot(userDocRef(), (snap) => {
+    if (snap.exists() && !isSaving) {
+      db.stickers = snap.data().stickers || {};
+      updateStats();
+      renderGrid();
+      renderMissing();
+      renderDupes();
+      updateTabDots();
+    }
+  }, (e) => {
+    setSyncDot('error');
+    log('Sync-Fehler: ' + e.message, 'err');
+  });
+}
+
+function saveDB() {
+  if (!currentUser) return;
+  // Debounce: wait 800ms after last change
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    isSaving = true;
+    setSyncDot('syncing');
+    try {
+      await setDoc(userDocRef(), { stickers: db.stickers, updatedAt: Date.now() });
+      setSyncDot('ok');
+    } catch(e) {
+      setSyncDot('error');
+      log('Speicherfehler: ' + e.message, 'err');
+      showToast('Speichern fehlgeschlagen', 'error');
+    } finally {
+      isSaving = false;
+    }
+  }, 800);
+}
+
+function setSyncDot(state) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  dot.title = state === 'ok' ? 'Synchronisiert' : state === 'syncing' ? 'Wird gespeichert...' : 'Sync-Fehler';
+}
+
+// Firebase config is hardcoded
+
+// ============================================================
+// API KEY
+// ============================================================
+function getApiKey() { return localStorage.getItem('panini_gemini_key') || ''; }
+
+window.saveApiKey = function() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) { showToast('Kein API Key', 'error'); return; }
+  localStorage.setItem('panini_gemini_key', key);
+  showApiStatus(true);
+  showToast('API Key gespeichert ✓', 'success');
+};
+
+function checkApiKey() {
+  const key = getApiKey();
+  if (key) document.getElementById('api-key-input').value = key;
+  showApiStatus(!!key);
+}
+
+function showApiStatus(ok) {
+  document.getElementById('api-status').innerHTML = ok
+    ? '<span class="status-badge ok">✓ Key gesetzt</span>'
+    : '<span class="status-badge err">✗ Kein Key</span>';
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+window.showPage = function(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'collection') renderGrid();
+  if (name === 'missing') renderMissing();
+  if (name === 'dupes') renderDupes();
+};
+
+// ============================================================
+// SCAN MODE
+// ============================================================
+window.setMode = function(mode) {
+  db.mode = mode;
+  document.getElementById('mode-new').classList.toggle('active', mode === 'new');
+  document.getElementById('mode-have').classList.toggle('active', mode === 'have');
+};
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+window.onDragOver = function(e) { e.preventDefault(); document.getElementById('scan-zone').classList.add('dragover'); };
+window.onDragLeave = function()  { document.getElementById('scan-zone').classList.remove('dragover'); };
+window.onDrop = function(e) {
+  e.preventDefault();
+  document.getElementById('scan-zone').classList.remove('dragover');
+  if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
+};
+
+// ============================================================
+// FILE QUEUE
+// ============================================================
+let queue = [];
+let isScanning = false;
+
+window.handleFiles = function(files) {
+  const imgs = Array.from(files).filter(f => f.type.startsWith('image/'));
+  if (!imgs.length) { showToast('Keine Bilder', 'error'); return; }
+  imgs.forEach(file => queue.push({ file, id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2), status: 'waiting', result: null }));
+  renderQueue();
+  document.getElementById('scan-btn').disabled = false;
+  showToast(imgs.length + ' Foto(s) bereit', 'info');
+};
+
+function renderQueue() {
+  const wrap = document.getElementById('queue-wrap');
+  if (!queue.length) { wrap.innerHTML = ''; return; }
+  const labels = {
+    waiting:  '<span class="queue-status waiting">⏳ Wartend</span>',
+    scanning: '<span class="queue-status scanning"><span class="spinner" style="border-color:rgba(232,184,75,.3);border-top-color:var(--accent)"></span> Scannt...</span>',
+    done:     '<span class="queue-status done">✓ Fertig</span>',
+    error:    '<span class="queue-status error">✗ Fehler</span>'
+  };
+  wrap.innerHTML = queue.map(item => `
+    <div class="queue-item" id="${item.id}">
+      <img class="queue-thumb" id="thumb_${item.id}" src="" alt="">
+      <span class="queue-name">${item.file.name}</span>
+      ${labels[item.status]}
+      ${item.result ? `<span class="queue-result">${item.result}</span>` : ''}
+      ${item.status==='waiting' ? `<button class="btn sm secondary" style="margin-left:auto" onclick="removeFromQueue('${item.id}')">✕</button>` : ''}
+    </div>`).join('');
+  queue.forEach(item => {
+    const thumb = document.getElementById('thumb_' + item.id);
+    if (thumb && !thumb.src.startsWith('data:')) {
+      const r = new FileReader(); r.onload = e => { if(thumb) thumb.src = e.target.result; }; r.readAsDataURL(item.file);
+    }
+  });
+}
+
+window.removeFromQueue = function(id) {
+  queue = queue.filter(i => i.id !== id);
+  renderQueue();
+  if (!queue.length) document.getElementById('scan-btn').disabled = true;
+};
+
+window.clearQueue = function() {
+  queue = [];
+  renderQueue();
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('batch-progress-wrap').style.display = 'none';
+  document.getElementById('result-card').style.display = 'none';
+};
+
+function updateQueueItem(id, status, result = null) {
+  const item = queue.find(i => i.id === id);
+  if (item) { item.status = status; item.result = result; }
+  renderQueue();
+}
+
+// ============================================================
+// BATCH SCAN
+// ============================================================
+window.startBatchScan = async function() {
+  const apiKey = getApiKey();
+  if (!apiKey) { showToast('API Key fehlt!', 'error'); showPage('admin'); return; }
+  const pending = queue.filter(i => i.status === 'waiting');
+  if (!pending.length || isScanning) return;
+
+  isScanning = true;
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Läuft...';
+  document.getElementById('batch-progress-wrap').style.display = 'block';
+
+  let done = 0, batchNew = 0, batchDupe = 0;
+  const chips = [];
+
+  for (const item of pending) {
+    updateQueueItem(item.id, 'scanning');
+    updateBatchProgress(done, pending.length, item.file.name);
+    log('Scanne: ' + item.file.name, 'warn');
+    try {
+      const numbers = await scanSingleFile(item.file, apiKey);
+      if (!numbers.length) {
+        updateQueueItem(item.id, 'error', 'Nichts erkannt');
+        log(item.file.name + ': Nichts erkannt', 'err');
+      } else {
+        const res = applyNumbers(numbers);
+        batchNew += res.new.length; batchDupe += res.dupe.length;
+        const summary = [res.new.length ? '+'+res.new.length+' neu' : '', res.dupe.length ? res.dupe.length+' doppelt' : ''].filter(Boolean).join(' · ');
+        updateQueueItem(item.id, 'done', summary);
+        log(item.file.name + ': ' + summary, 'success');
+        res.new.forEach(n => chips.push(`<span class="chip new">#${n}</span>`));
+        res.dupe.forEach(n => chips.push(`<span class="chip dupe">#${n} ×${db.stickers[String(n)]}</span>`));
+      }
+    } catch(e) {
+      updateQueueItem(item.id, 'error', e.message.slice(0,40));
+      log('Fehler: ' + e.message, 'err');
+    }
+    done++;
+    updateBatchProgress(done, pending.length, '');
+    if (done < pending.length) await sleep(4000);
+  }
+
+  saveDB(); updateStats(); renderGrid(); renderMissing(); renderDupes(); updateTabDots();
+
+  document.getElementById('result-card').style.display = 'block';
+  document.getElementById('result-summary').innerHTML = `${pending.length} Fotos — <strong style="color:var(--green)">${batchNew} neu</strong> · <strong style="color:var(--accent)">${batchDupe} doppelt</strong>`;
+  document.getElementById('result-chips').innerHTML = chips.slice(0, 80).join('');
+  showToast('Fertig! ' + batchNew + ' neue Sticker', 'success');
+
+  isScanning = false;
+  btn.disabled = false; btn.innerHTML = '🔍 Alle scannen';
+  document.getElementById('batch-progress-wrap').style.display = 'none';
+};
+
+function updateBatchProgress(done, total, name) {
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('batch-bar').style.width = pct + '%';
+  document.getElementById('batch-label-left').textContent = done < total ? 'Scannt: ' + (name||'...') : '✓ Fertig';
+  document.getElementById('batch-label-right').textContent = done + '/' + total;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ============================================================
+// GEMINI
+// ============================================================
+async function scanSingleFile(file, apiKey) {
+  const base64 = await fileToBase64(file);
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [
+        { inline_data: { mime_type: file.type||'image/jpeg', data: base64 } },
+        { text: 'Erkenne alle Panini WM 2026 Sticker-Nummern (1-670) auf dem Bild. Gib NUR die Zahlen komma-getrennt zurück, z.B. 1,5,12. Wenn keine: KEINE. Kein Zusatztext.' }
+      ]}], generationConfig: { temperature: 0.1, maxOutputTokens: 300 } })
+    }
+  );
+  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'API ' + resp.status); }
+  const data = await resp.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  return raw === 'KEINE' || !raw ? [] : parseNumbers(raw);
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
+}
+
+// ============================================================
+// LIVE CAMERA
+// ============================================================
+let cameraStream = null, camCount = 0, camScanning = false;
+
+window.openLiveCamera = async function() {
+  if (!getApiKey()) { showToast('API Key fehlt!', 'error'); showPage('admin'); return; }
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }, audio: false });
+    document.getElementById('camera-video').srcObject = cameraStream;
+    await document.getElementById('camera-video').play();
+    camCount = 0; updateCamCounter();
+    document.getElementById('camera-modal').classList.add('open');
+    document.getElementById('camera-hint').textContent = '📷 Sticker hinhalten → Auslöser drücken';
+    document.getElementById('camera-scan-overlay').classList.remove('show');
+  } catch(e) { showToast('Kamera: ' + e.message, 'error'); }
+};
+
+window.closeLiveCamera = function() {
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  document.getElementById('camera-modal').classList.remove('open');
+  if (camCount > 0) { saveDB(); updateStats(); renderGrid(); renderMissing(); renderDupes(); updateTabDots(); showToast(camCount + ' Scans gespeichert', 'success'); }
+};
+
+window.captureAndScan = async function() {
+  if (camScanning) return;
+  const apiKey = getApiKey(); if (!apiKey) return;
+  camScanning = true;
+  const overlay = document.getElementById('camera-scan-overlay');
+  const hint = document.getElementById('camera-hint');
+  document.getElementById('shutter-btn').classList.add('scanning');
+  overlay.classList.add('show');
+  const flash = document.getElementById('camera-flash');
+  flash.style.opacity = '0.7'; setTimeout(() => flash.style.opacity = '0', 120);
+  try {
+    const video = document.getElementById('camera-video');
+    const canvas = document.getElementById('camera-canvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+          { text: 'Erkenne alle Panini WM 2026 Sticker-Nummern (1-670). Nur Zahlen komma-getrennt, z.B. 1,5,12. Wenn keine: KEINE.' }
+        ]}], generationConfig: { temperature: 0.1, maxOutputTokens: 300 } })
+      }
+    );
+    const data = await resp.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    if (!raw || raw === 'KEINE') {
+      hint.textContent = '❌ Nichts erkannt — nochmals versuchen';
+    } else {
+      const nums = parseNumbers(raw);
+      const res = applyNumbers(nums);
+      camCount++; updateCamCounter(); updateStats();
+      const s = [res.new.length?'+'+res.new.length+' neu':'', res.dupe.length?res.dupe.length+' doppelt':''].filter(Boolean).join(' · ');
+      hint.textContent = '✅ ' + s + ' — weiter scannen';
+      log('Kamera: ' + s, 'success');
+    }
+  } catch(e) {
+    hint.textContent = '⚠️ ' + e.message.slice(0, 50);
+  } finally {
+    camScanning = false;
+    document.getElementById('shutter-btn').classList.remove('scanning');
+    overlay.classList.remove('show');
+  }
+};
+
+function updateCamCounter() { document.getElementById('camera-counter').textContent = camCount + ' gescannt'; }
+
+// ============================================================
+// MANUAL
+// ============================================================
+window.openManual = function() { document.getElementById('manual-card').style.display='block'; document.getElementById('manual-input').focus(); };
+window.closeManual = function() { document.getElementById('manual-card').style.display='none'; document.getElementById('manual-input').value=''; };
+window.addManual = function() {
+  const nums = parseNumbers(document.getElementById('manual-input').value);
+  if (!nums.length) { showToast('Keine gültigen Nummern', 'error'); return; }
+  const res = applyNumbers(nums);
+  closeManual(); saveDB(); updateStats(); renderGrid(); renderMissing(); renderDupes(); updateTabDots();
+  document.getElementById('result-card').style.display = 'block';
+  document.getElementById('result-summary').innerHTML = `Manuell: <strong style="color:var(--green)">${res.new.length} neu</strong> · <strong style="color:var(--accent)">${res.dupe.length} doppelt</strong>`;
+  document.getElementById('result-chips').innerHTML = [...res.new.map(n=>`<span class="chip new">#${n}</span>`), ...res.dupe.map(n=>`<span class="chip dupe">#${n} ×${db.stickers[String(n)]}</span>`)].join('');
+};
+
+// ============================================================
+// NUMBER LOGIC
+// ============================================================
+function parseNumbers(text) {
+  return [...new Set((text.match(/\d+/g)||[]).map(n=>parseInt(n)).filter(n=>n>=1&&n<=TOTAL))];
+}
+
+function applyNumbers(numbers) {
+  const res = { new: [], dupe: [], already: [] };
+  numbers.forEach(n => {
+    const k = String(n);
+    if (db.mode === 'have') {
+      if (!db.stickers[k]) { db.stickers[k]=1; res.new.push(n); } else res.already.push(n);
+    } else {
+      if (!db.stickers[k]) { db.stickers[k]=1; res.new.push(n); } else { db.stickers[k]++; res.dupe.push(n); }
+    }
+  });
+  return res;
+}
+
+// ============================================================
+// UI UPDATES
+// ============================================================
+function updateStats() {
+  const have = Object.keys(db.stickers).length;
+  const missing = TOTAL - have;
+  const dupes = Object.values(db.stickers).filter(c=>c>1).length;
+  const pct = Math.round(have/TOTAL*100);
+  document.getElementById('stat-have').textContent = have;
+  document.getElementById('stat-missing').textContent = missing;
+  document.getElementById('stat-dupes').textContent = dupes;
+  document.getElementById('stat-pct').textContent = pct + '%';
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = have + ' / ' + TOTAL + ' Sticker';
+}
+
+function updateTabDots() {
+  const have = Object.keys(db.stickers).length;
+  document.getElementById('tab-collection').classList.toggle('has-data', have > 0);
+  document.getElementById('tab-missing').classList.toggle('has-data', have > 0 && have < TOTAL);
+  document.getElementById('tab-dupes').classList.toggle('has-data', Object.values(db.stickers).some(c=>c>1));
+}
+
+function renderGrid() {
+  const grid = document.getElementById('sticker-grid');
+  let html = '';
+  for (let i = 1; i <= TOTAL; i++) {
+    const count = db.stickers[String(i)] || 0;
+    let cls = 'missing', extra = '';
+    if (count === 1) cls = 'have';
+    else if (count > 1) { cls = 'dupe'; extra = `<span class="dupe-badge">${count}</span>`; }
+    if (currentFilter !== 'all' && cls !== currentFilter) continue;
+    html += `<div class="sticker-cell ${cls}" onclick="toggleSticker(${i})" title="#${i}">${i}${extra}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.toggleSticker = function(num) {
+  const k = String(num);
+  if (!db.stickers[k]) db.stickers[k] = 1;
+  else if (db.stickers[k] === 1) delete db.stickers[k];
+  else db.stickers[k]--;
+  saveDB(); updateStats(); renderGrid(); renderMissing(); renderDupes(); updateTabDots();
+};
+
+window.setFilter = function(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+};
+
+function renderMissing() {
+  const search = document.getElementById('missing-search')?.value?.trim() || '';
+  const missing = [];
+  for (let i = 1; i <= TOTAL; i++) if (!db.stickers[String(i)]) missing.push(i);
+  const filtered = search ? missing.filter(n => String(n).includes(search)) : missing;
+  document.getElementById('missing-count').textContent = missing.length + ' fehlen' + (search ? ` (${filtered.length} angezeigt)` : '');
+  if (!missing.length) { document.getElementById('missing-list').innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>Alle vorhanden!</div>'; return; }
+  if (!filtered.length) { document.getElementById('missing-list').innerHTML = '<div style="color:var(--muted);font-size:13px">Keine Treffer</div>'; return; }
+  const groups = {};
+  filtered.forEach(n => { const g = Math.floor((n-1)/50); const l = `${g*50+1}–${Math.min((g+1)*50,TOTAL)}`; if(!groups[l]) groups[l]=[]; groups[l].push(n); });
+  document.getElementById('missing-list').innerHTML = Object.entries(groups).map(([l,nums]) =>
+    `<div class="section-label">${l} <span style="font-weight:400">(${nums.length})</span></div>
+     <div class="missing-numbers">${nums.map(n=>`<span class="miss-chip" onclick="quickAdd(${n})">#${n}</span>`).join('')}</div>`
+  ).join('');
+}
+
+window.quickAdd = function(num) {
+  db.stickers[String(num)] = 1;
+  saveDB(); updateStats(); renderGrid(); renderMissing(); updateTabDots();
+  showToast('#' + num + ' hinzugefügt ✓', 'success');
+};
+
+function renderDupes() {
+  const dupes = Object.entries(db.stickers).filter(([k,v])=>v>1).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
+  const totalExtra = dupes.reduce((s,[k,v])=>s+(v-1),0);
+  document.getElementById('dupes-summary').textContent = dupes.length
+    ? `${dupes.length} Sticker doppelt — ${totalExtra} Tausch-Exemplare`
+    : 'Noch keine Doppelten';
+  if (!dupes.length) { document.getElementById('dupes-list').innerHTML = '<div class="empty-state"><div class="empty-icon">🔁</div>Keine Doppelten</div>'; return; }
+  document.getElementById('dupes-list').innerHTML = `<table class="dupe-table"><thead><tr><th>Sticker</th><th>Gesamt</th><th>Zum Tauschen</th><th></th></tr></thead><tbody>
+    ${dupes.map(([k,v])=>`<tr><td><strong>#${k}</strong></td><td><span class="count-badge">${v}×</span></td><td style="color:var(--accent)">${v-1}×</td>
+    <td><button class="btn sm secondary" onclick="adjDupe(${k},-1)">－</button> <button class="btn sm secondary" onclick="adjDupe(${k},1)" style="margin-left:4px">＋</button></td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+window.adjDupe = function(num, delta) {
+  const k = String(num);
+  db.stickers[k] = (db.stickers[k]||1) + delta;
+  if (db.stickers[k] < 1) db.stickers[k] = 1;
+  saveDB(); updateStats(); renderDupes(); renderGrid(); updateTabDots();
+};
+
+// ============================================================
+// EXPORT
+// ============================================================
+window.exportList = function() {
+  const missing = []; for(let i=1;i<=TOTAL;i++) if(!db.stickers[String(i)]) missing.push(i);
+  const dupes = Object.entries(db.stickers).filter(([k,v])=>v>1).map(([k,v])=>`#${k} (×${v-1})`);
+  navigator.clipboard.writeText(`=== PANINI WM 2026 ===\nFEHLEND: ${missing.map(n=>'#'+n).join(', ')}\nDOPPELTE: ${dupes.join(', ')}`);
+  showToast('Kopiert ✓', 'success');
+};
+
+window.exportJSON = function() {
+  const blob = new Blob([JSON.stringify({stickers:db.stickers},null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'panini-wm2026.json'; a.click();
+};
+
+// ============================================================
+// RESET
+// ============================================================
+window.resetAll = async function() {
+  if (!confirm('Alle deine Sticker-Daten löschen?')) return;
+  db.stickers = {};
+  await saveDB(); updateStats(); renderGrid(); renderMissing(); renderDupes(); updateTabDots();
+  showToast('Daten gelöscht', 'info');
+};
+
+// ============================================================
+// LOG & TOAST
+// ============================================================
+function log(msg, type='') {
+  const el = document.getElementById('scan-log');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.textContent = '[' + new Date().toLocaleTimeString('de-CH') + '] ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  while (el.children.length > 40) el.removeChild(el.firstChild);
+}
+
+window.showToast = function(msg, type='info') {
+  const icons = {success:'✅',error:'❌',info:'💡'};
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = (icons[type]||'') + ' ' + msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+};
+
+// ============================================================
+// START
+// ============================================================
+showLoading(true);
+initFirebase();
+
+</script>
+</body>
+</html>
