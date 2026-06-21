@@ -311,7 +311,6 @@
     .sticker-grid{grid-template-columns:repeat(auto-fill,minmax(48px,1fr));}
   }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
 </head>
 <body>
 
@@ -492,16 +491,30 @@
   <!-- ADMIN -->
   <div class="page" id="page-admin">
     <div class="card">
-      <div class="card-title">OCR Engine</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.8">
-        <strong style="color:var(--text)">Tesseract.js</strong> — Läuft lokal im Browser<br>
-        <span class="status-badge ok" style="margin-top:6px;display:inline-flex">✓ Kein API Key nötig</span>
-        <span class="status-badge ok" style="margin-top:6px;display:inline-flex;margin-left:6px">✓ Kein Limit</span>
-        <span class="status-badge ok" style="margin-top:6px;display:inline-flex;margin-left:6px">✓ Offline fähig</span>
+      <div class="card-title">Gemini Vision API — Keys</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+        Bis zu 3 kostenlose Keys eintragen. App wechselt automatisch wenn einer sein Limit erreicht.<br>
+        <strong style="color:var(--text)">Gratis Key:</strong> aistudio.google.com → API Keys → Create
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:10px">
-        💡 Tipp: Gutes Licht und ruhige Hand verbessern die Erkennung.<br>
-        Falls Sticker nicht erkannt: Manuell eingeben.
+      <div class="form-group">
+        <label class="form-label">Key 1 (Primär)</label>
+        <div style="display:flex;gap:8px">
+          <input type="password" class="form-input mono" id="gemini-key-1" placeholder="AIza...">
+          <button class="btn sm" onclick="saveGeminiKeys()">💾</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Key 2 (Fallback)</label>
+        <input type="password" class="form-input mono" id="gemini-key-2" placeholder="AIza... (optional)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Key 3 (Fallback)</label>
+        <input type="password" class="form-input mono" id="gemini-key-3" placeholder="AIza... (optional)">
+      </div>
+      <div id="gemini-key-status" style="margin-top:8px"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">
+        💡 Heft-Scan: Gemini erkennt welche Sticker eingeklebt sind.<br>
+        Neue Sticker: Codes direkt aus Foto lesen.
       </div>
     </div>
     <div class="card">
@@ -626,12 +639,12 @@
 
 </div><!-- /app -->
 <div class="pwa-banner" id="pwa-banner">
-  <div style="font-size:28px">⚽</div>
+  <div style="font-size:24px">⚽</div>
   <div class="pwa-banner-text">
-    <strong>Zum Homescreen hinzufügen</strong>
-    <span>Nutze die App auch offline — wie eine echte App</span>
+    <strong id="pwa-banner-title">Zum Homescreen hinzufügen</strong>
+    <span id="pwa-banner-sub">Nutze die App auch offline</span>
   </div>
-  <button class="btn sm" onclick="installPWA()" id="pwa-install-btn">Installieren</button>
+  <button class="btn sm" onclick="installPWA()" id="pwa-install-btn" style="display:none">Installieren</button>
   <button class="btn secondary sm" onclick="dismissPWA()">✕</button>
 </div>
 
@@ -648,55 +661,55 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot }
 // STICKER DATABASE — 980 stickers: CODE+NUMBER format
 // ============================================================
 const TEAMS = [
-  { code:"00",  name:"Panini Logo",          count:1  },
-  { code:"FWC", name:"FIFA WM 2026",         count:8  },
-  { code:"MEX", name:"Mexiko",               count:20 },
-  { code:"RSA", name:"Südafrika",            count:20 },
-  { code:"KOR", name:"Südkorea",             count:20 },
-  { code:"CZE", name:"Tschechien",           count:20 },
-  { code:"CAN", name:"Kanada",               count:20 },
-  { code:"BIH", name:"Bosnien",              count:20 },
-  { code:"QAT", name:"Katar",                count:20 },
-  { code:"SUI", name:"Schweiz",              count:20 },
-  { code:"BRA", name:"Brasilien",            count:20 },
-  { code:"MAR", name:"Marokko",              count:20 },
-  { code:"HAI", name:"Haiti",                count:20 },
-  { code:"SCO", name:"Schottland",           count:20 },
-  { code:"USA", name:"USA",                  count:20 },
-  { code:"PAR", name:"Paraguay",             count:20 },
-  { code:"AUS", name:"Australien",           count:20 },
-  { code:"TUR", name:"Türkei",               count:20 },
-  { code:"NOR", name:"Norwegen",             count:20 },
-  { code:"ARG", name:"Argentinien",          count:20 },
-  { code:"CMR", name:"Kamerun",              count:20 },
-  { code:"POR", name:"Portugal",             count:20 },
-  { code:"COD", name:"Kongo DR",             count:20 },
-  { code:"NED", name:"Niederlande",          count:20 },
-  { code:"URU", name:"Uruguay",              count:20 },
-  { code:"ESP", name:"Spanien",              count:20 },
-  { code:"ENG", name:"England",              count:20 },
-  { code:"COL", name:"Kolumbien",            count:20 },
-  { code:"GER", name:"Deutschland",          count:20 },
-  { code:"SEN", name:"Senegal",              count:20 },
-  { code:"IRI", name:"Iran",                 count:20 },
-  { code:"ECU", name:"Ecuador",              count:20 },
-  { code:"SRB", name:"Serbien",              count:20 },
-  { code:"JPN", name:"Japan",                count:20 },
-  { code:"SWE", name:"Schweden",             count:20 },
-  { code:"BEL", name:"Belgien",              count:20 },
-  { code:"GHA", name:"Ghana",                count:20 },
-  { code:"FRA", name:"Frankreich",           count:20 },
-  { code:"NGA", name:"Nigeria",              count:20 },
-  { code:"CRO", name:"Kroatien",             count:20 },
-  { code:"PAN", name:"Panama",               count:20 },
-  { code:"PER", name:"Peru",                 count:20 },
-  { code:"CHI", name:"Chile",                count:20 },
-  { code:"VEN", name:"Venezuela",            count:20 },
-  { code:"TUN", name:"Tunesien",             count:20 },
-  { code:"CIV", name:"Elfenbeinküste",       count:20 },
-  { code:"EGY", name:"Ägypten",              count:20 },
-  { code:"DEN", name:"Dänemark",             count:20 },
-  { code:"POL", name:"Polen",                count:20 },
+  { code:"FWC", name:"WM Geschichte",       count:19 }, // FWC1-FWC19 (19 intro+history stickers)
+  { code:"ALG", name:"Algerien",            count:20 },
+  { code:"ARG", name:"Argentinien",         count:20 },
+  { code:"AUS", name:"Australien",          count:20 },
+  { code:"AUT", name:"Österreich",          count:20 },
+  { code:"BEL", name:"Belgien",             count:20 },
+  { code:"BIH", name:"Bosnien-Herz.",       count:20 },
+  { code:"BRA", name:"Brasilien",           count:20 },
+  { code:"CAN", name:"Kanada",              count:20 },
+  { code:"CIV", name:"Elfenbeinküste",      count:20 },
+  { code:"COD", name:"Kongo DR",            count:20 },
+  { code:"COL", name:"Kolumbien",           count:20 },
+  { code:"CPV", name:"Kap Verde",           count:20 },
+  { code:"CRO", name:"Kroatien",            count:20 },
+  { code:"CUW", name:"Curaçao",             count:20 },
+  { code:"CZE", name:"Tschechien",          count:20 },
+  { code:"ECU", name:"Ecuador",             count:20 },
+  { code:"EGY", name:"Ägypten",             count:20 },
+  { code:"ENG", name:"England",             count:20 },
+  { code:"ESP", name:"Spanien",             count:20 },
+  { code:"FRA", name:"Frankreich",          count:20 },
+  { code:"GER", name:"Deutschland",         count:20 },
+  { code:"GHA", name:"Ghana",               count:20 },
+  { code:"HAI", name:"Haiti",               count:20 },
+  { code:"IRN", name:"Iran",                count:20 },
+  { code:"IRQ", name:"Irak",                count:20 },
+  { code:"JOR", name:"Jordanien",           count:20 },
+  { code:"JPN", name:"Japan",               count:20 },
+  { code:"KOR", name:"Südkorea",            count:20 },
+  { code:"KSA", name:"Saudi-Arabien",       count:20 },
+  { code:"MAR", name:"Marokko",             count:20 },
+  { code:"MEX", name:"Mexiko",              count:20 },
+  { code:"NED", name:"Niederlande",         count:20 },
+  { code:"NOR", name:"Norwegen",            count:20 },
+  { code:"NZL", name:"Neuseeland",          count:20 },
+  { code:"PAN", name:"Panama",              count:20 },
+  { code:"PAR", name:"Paraguay",            count:20 },
+  { code:"POR", name:"Portugal",            count:20 },
+  { code:"QAT", name:"Katar",               count:20 },
+  { code:"RSA", name:"Südafrika",           count:20 },
+  { code:"SCO", name:"Schottland",          count:20 },
+  { code:"SEN", name:"Senegal",             count:20 },
+  { code:"SUI", name:"Schweiz",             count:20 },
+  { code:"SWE", name:"Schweden",            count:20 },
+  { code:"TUN", name:"Tunesien",            count:20 },
+  { code:"TUR", name:"Türkei",              count:20 },
+  { code:"URU", name:"Uruguay",             count:20 },
+  { code:"USA", name:"USA",                 count:20 },
+  { code:"UZB", name:"Usbekistan",          count:20 },
 ];
 
 const TOTAL = TEAMS.reduce((s,t) => s + t.count, 0);
@@ -769,8 +782,8 @@ onAuthStateChanged(auth, async user => {
     subscribeData();
     refreshAll();
     log('Angemeldet: ' + user.email, 'success');
-    // Preload Tesseract in background so first scan is instant
-    setTimeout(() => getTesseractWorker().catch(()=>{}), 1500);
+    // Load Gemini keys
+    loadGeminiKeys();
   } else {
     currentUser = null;
     if (unsubSnap) { unsubSnap(); unsubSnap = null; }
@@ -918,7 +931,6 @@ function updQueue(id, status, result=null) {
 // BATCH SCAN
 // ============================================================
 window.startBatchScan = async () => {
-  // No API key needed — using local Tesseract OCR
   const pending = queue.filter(i=>i.status==='waiting'); if (!pending.length||isScanning) return;
   isScanning = true;
   const btn = document.getElementById('scan-btn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Läuft...';
@@ -953,8 +965,8 @@ window.startBatchScan = async () => {
       }
     } catch(e) { updQueue(item.id,'error',e.message.slice(0,35)); log('Fehler: '+e.message,'err'); }
     done++;
-    // No rate limit with local OCR — small delay for UI update only
-    if (done<pending.length) await sleep(200);
+    // Small delay between Gemini calls to respect rate limits
+    if (done<pending.length) await sleep(1500);
   }
   saveData(); refreshAll();
   document.getElementById('batch-bar').style.width='100%';
@@ -971,37 +983,136 @@ window.startBatchScan = async () => {
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 // ============================================================
-// TESSERACT OCR — local, no API key, no limits
+// GEMINI VISION API — Key rotation
 // ============================================================
-let tesseractWorker = null;
+let geminiKeys = [];
+let geminiKeyIndex = 0;
 
-async function getTesseractWorker() {
-  if (tesseractWorker) return tesseractWorker;
-  log('Tesseract wird geladen...', 'warn');
-  tesseractWorker = await Tesseract.createWorker('eng', 1, { logger: ()=>{} });
-  await tesseractWorker.setParameters({
-    // Tight whitelist: only letters+digits needed for RSA1, GER3 etc.
-    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-    tessedit_pageseg_mode: '6',   // uniform block
-    tessedit_ocr_engine_mode: '1' // LSTM only — faster
+function loadGeminiKeys() {
+  const k1 = localStorage.getItem('gemini_key_1') || '';
+  const k2 = localStorage.getItem('gemini_key_2') || '';
+  const k3 = localStorage.getItem('gemini_key_3') || '';
+  geminiKeys = [k1, k2, k3].filter(k => k.trim());
+  geminiKeyIndex = 0;
+  // Update UI
+  if (document.getElementById('gemini-key-1')) {
+    document.getElementById('gemini-key-1').value = k1;
+    document.getElementById('gemini-key-2').value = k2;
+    document.getElementById('gemini-key-3').value = k3;
+  }
+  updateGeminiStatus();
+}
+
+window.saveGeminiKeys = () => {
+  const k1 = document.getElementById('gemini-key-1').value.trim();
+  const k2 = document.getElementById('gemini-key-2').value.trim();
+  const k3 = document.getElementById('gemini-key-3').value.trim();
+  localStorage.setItem('gemini_key_1', k1);
+  localStorage.setItem('gemini_key_2', k2);
+  localStorage.setItem('gemini_key_3', k3);
+  loadGeminiKeys();
+  showToast('Keys gespeichert ✓', 'success');
+};
+
+function updateGeminiStatus() {
+  const el = document.getElementById('gemini-key-status');
+  if (!el) return;
+  if (!geminiKeys.length) {
+    el.innerHTML = '<span class="status-badge err">✗ Kein Key eingetragen</span>';
+  } else {
+    el.innerHTML = `<span class="status-badge ok">✓ ${geminiKeys.length} Key${geminiKeys.length>1?'s':''} aktiv — Key ${geminiKeyIndex+1} wird verwendet</span>`;
+  }
+}
+
+function getNextGeminiKey() {
+  if (!geminiKeys.length) return null;
+  return geminiKeys[geminiKeyIndex % geminiKeys.length];
+}
+
+function rotateGeminiKey() {
+  geminiKeyIndex = (geminiKeyIndex + 1) % geminiKeys.length;
+  log('Gemini Key gewechselt → Key ' + (geminiKeyIndex + 1), 'warn');
+  updateGeminiStatus();
+}
+
+async function callGemini(base64, mimeType, prompt) {
+  if (!geminiKeys.length) throw new Error('Kein Gemini API Key — bitte in Admin eintragen');
+  let lastError = null;
+  // Try each key until one works
+  for (let attempt = 0; attempt < geminiKeys.length; attempt++) {
+    const key = getNextGeminiKey();
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { inline_data: { mime_type: mimeType, data: base64 } },
+              { text: prompt }
+            ]}],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 400 }
+          })
+        }
+      );
+      if (r.status === 429 || r.status === 403) {
+        // Quota exceeded — try next key
+        log('Key ' + (geminiKeyIndex+1) + ' Limit erreicht → wechsle', 'warn');
+        rotateGeminiKey();
+        lastError = new Error('Quota exceeded');
+        continue;
+      }
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error?.message || 'API ' + r.status); }
+      const d = await r.json();
+      return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    } catch(e) {
+      if (e.message === 'Quota exceeded') { lastError = e; continue; }
+      throw e;
+    }
+  }
+  throw lastError || new Error('Alle Gemini Keys erschöpft');
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file);
   });
-  log('Tesseract bereit ✓', 'success');
-  return tesseractWorker;
 }
 
 async function scanFile(file) {
-  await getTesseractWorker(); // ensure loaded
-  const ids = await doubleScan(file);
-  log('OCR Ergebnis: ' + (ids.length ? ids.join(', ') : 'nichts'));
-  return ids;
+  const base64 = await fileToBase64(file);
+  const mimeType = file.type || 'image/jpeg';
+
+  let prompt;
+  if (scanMode === 'have') {
+    // Heft-Scan: detect which sticker slots have a photo glued in
+    prompt = `Du analysierst eine Seite aus dem Panini FIFA WM 2026 Sammelalbum.
+Auf der Seite gibt es Sticker-Plätze. Manche sind LEER (nur weisser Platz mit aufgedrucktem Code wie "RSA 5"), manche sind EINGEKLEBT (Spieler-Foto drin).
+Erkenne NUR die EINGEKLEBTEN Sticker (mit Foto).
+Gib die Codes kommagetrennt zurück, z.B.: RSA2,RSA5,RSA7
+Wenn kein Sticker eingeklebt: KEINE
+Nur Codes, kein Zusatztext.`;
+  } else {
+    // Normal scan: read sticker codes
+    prompt = `Erkenne alle Panini WM 2026 Sticker-Codes auf dem Bild (Format: RSA1, GER3, BRA5, FWC2 etc.).
+Gib NUR die Codes kommagetrennt zurück. Wenn keine: KEINE. Kein Zusatztext.`;
+  }
+
+  const raw = await callGemini(base64, mimeType, prompt);
+  log('Gemini: ' + raw.slice(0, 80));
+  if (!raw || raw === 'KEINE') return [];
+  return parseStickerCodes(raw);
 }
 
 async function scanCanvas(canvas) {
-  await getTesseractWorker();
-  preprocessCanvas(canvas);
-  const ids = await doubleScan(canvas);
-  log('OCR Ergebnis: ' + (ids.length ? ids.join(', ') : 'nichts'));
-  return ids;
+  // Canvas → blob → base64
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+  const base64 = await fileToBase64(blob);
+  const prompt = `Erkenne alle Panini WM 2026 Sticker-Codes (Format: RSA1, GER3, BRA5 etc.).
+Gib NUR die Codes kommagetrennt zurück. Wenn keine: KEINE. Kein Zusatztext.`;
+  const raw = await callGemini(base64, 'image/jpeg', prompt);
+  log('Gemini Kamera: ' + raw.slice(0, 80));
+  if (!raw || raw === 'KEINE') return [];
+  return parseStickerCodes(raw);
 }
 
 // Parse OCR output → valid sticker IDs
@@ -1052,132 +1163,7 @@ function preprocessCanvas(canvas) {
 // Low confidence = sticker photo covers the printed text = FILLED
 // High confidence = clean printed text on white = EMPTY slot
 // ============================================================
-async function doubleScan(source) {
-  const worker = await getTesseractWorker();
 
-  // Convert File to canvas if needed
-  let canvas;
-  if (source instanceof HTMLCanvasElement) {
-    canvas = source;
-  } else {
-    canvas = document.createElement('canvas');
-    const img = await createImageBitmap(source);
-    canvas.width = img.width; canvas.height = img.height;
-    canvas.getContext('2d').drawImage(img, 0, 0);
-  }
-
-  if (scanMode === 'have') {
-    // HEFT-SCAN MODE: detect FILLED sticker slots
-    return await detectFilledStickers(canvas, worker);
-  } else {
-    // NORMAL MODE: just read all visible codes
-    const r = await worker.recognize(canvas);
-    return parseStickerCodes(r.data.text);
-  }
-}
-
-async function detectFilledStickers(canvas, worker) {
-  // LOGIC: OCR liest leere Plätze KLAR (gedruckter Text auf weissem Hintergrund)
-  //        OCR liest eingeklebte Plätze NICHT (Foto überdeckt den Text)
-  // Aber: grüner Album-Hintergrund kann Confidence senken → hohen Threshold nötig
-  // Lösung: BEIDE Bedingungen müssen erfüllt sein um als "leer" zu gelten:
-  //   1. Confidence > 80% UND
-  //   2. Pixel-Bereich um Code ist hell/uniform (nicht foto-bunt)
-
-  const result = await worker.recognize(canvas);
-  const words = result.data.words || [];
-  const ctx = canvas.getContext('2d');
-  log('Wörter erkannt: ' + words.length);
-
-  // Find team code words with HIGH confidence
-  const teamWords = words.filter(w => {
-    const t = w.text.trim().toUpperCase();
-    return TEAMS.some(tm => tm.code === t) && w.confidence > 80;
-  });
-  const numWords = words.filter(w => {
-    return /^[0-9]{1,2}$/.test(w.text.trim()) && w.confidence > 80;
-  });
-
-  // Detect dominant team (use ALL team words regardless of confidence)
-  const allTeamWords = words.filter(w => TEAMS.some(tm => tm.code === w.text.trim().toUpperCase()));
-  const teamCounts = {};
-  allTeamWords.forEach(w => {
-    const code = w.text.trim().toUpperCase();
-    teamCounts[code] = (teamCounts[code] || 0) + 1;
-  });
-  const dominantTeam = Object.entries(teamCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
-  if (!dominantTeam) { log('Kein Team erkannt', 'warn'); return []; }
-  log('Team: ' + dominantTeam);
-
-  // Build readable set: only codes that are BOTH high-confidence AND have
-  // bright uniform pixels underneath (= white empty slot background)
-  const readableIds = new Set();
-
-  for (const tw of teamWords) {
-    const tx = (tw.bbox.x0 + tw.bbox.x1) / 2;
-    const ty = (tw.bbox.y0 + tw.bbox.y1) / 2;
-    let bestNum = null, bestDist = Infinity;
-
-    for (const nw of numWords) {
-      const nx = (nw.bbox.x0 + nw.bbox.x1) / 2;
-      const ny = (nw.bbox.y0 + nw.bbox.y1) / 2;
-      const dist = Math.sqrt((nx-tx)**2 + (ny-ty)**2);
-      const maxDist = canvas.width * 0.12;
-      if (dist < bestDist && dist < maxDist) { bestDist = dist; bestNum = nw; }
-    }
-
-    if (!bestNum) continue;
-    const id = tw.text.trim().toUpperCase() + parseInt(bestNum.text.trim());
-    if (!ALL_STICKER_IDS.includes(id)) continue;
-
-    // Secondary check: is the area around this code bright and uniform?
-    // Expand bbox to cover the full sticker slot area
-    const bx0 = Math.min(tw.bbox.x0, bestNum.bbox.x0);
-    const by0 = Math.min(tw.bbox.y0, bestNum.bbox.y0);
-    const bx1 = Math.max(tw.bbox.x1, bestNum.bbox.x1);
-    const by1 = Math.max(tw.bbox.y1, bestNum.bbox.y1);
-    const bw = bx1 - bx0, bh = by1 - by0;
-
-    // Sample area 2x bigger than the code text to catch surrounding slot
-    const sx = Math.max(0, bx0 - bw);
-    const sy = Math.max(0, by0 - bh * 0.5);
-    const sw = Math.min(canvas.width - sx, bw * 3);
-    const sh = Math.min(canvas.height - sy, bh * 3);
-
-    if (sw < 2 || sh < 2) { readableIds.add(id); continue; }
-
-    const pixels = ctx.getImageData(sx, sy, sw, sh).data;
-    let bright = 0, total = 0;
-    for (let i = 0; i < pixels.length; i += 16) {
-      const avg = (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
-      if (avg > 180) bright++; // "white-ish" pixel
-      total++;
-    }
-    const brightRatio = bright / total;
-    log(id + ' conf:' + Math.round(tw.confidence) + '% bright:' + Math.round(brightRatio*100) + '%');
-
-    // Empty slot: mostly bright (>55% white-ish pixels) = white sticker background
-    // Filled slot: darker/colorful photo → lower brightness ratio
-    if (brightRatio > 0.55) {
-      readableIds.add(id);
-      log(id + ' → LEER');
-    } else {
-      log(id + ' → EINGEKLEBT (dunkel)', 'warn');
-    }
-  }
-
-  log('Lesbar/leer: ' + [...readableIds].join(', '));
-
-  // All team stickers NOT in readableIds = filled
-  const team = TEAMS.find(t => t.code === dominantTeam);
-  if (!team) return [];
-  const allTeamIds = team.code === '00' ? ['00'] :
-    [...Array(team.count)].map((_, i) => team.code + (i + 1));
-
-  const filledIds = allTeamIds.filter(id => !readableIds.has(id));
-  log('Eingeklebt: ' + filledIds.join(', '), 'success');
-  return filledIds;
-}
 
 // ============================================================
 // SCAN FRAME CROP — only analyse the marked area
@@ -1314,7 +1300,6 @@ function updateQuickDisplay() {
 let camStream=null, camCount=0, camScanning=false;
 
 window.openLiveCamera = async () => {
-  // No API key needed — local Tesseract OCR
   try {
     camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
     document.getElementById('camera-video').srcObject=camStream;
@@ -1567,7 +1552,7 @@ window.adjDupe = (id,d) => {
   saveData(); updateStats(); updateTabDots(); renderDupes(); renderMissing();
 };
 
-// API Key no longer needed — using Tesseract.js local OCR
+// Gemini key management handled by loadGeminiKeys()
 
 // ============================================================
 // EXPORT
@@ -1611,20 +1596,42 @@ let deferredInstallPrompt = null;
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(() => { try { log('PWA Service Worker aktiv ✓', 'success'); } catch(e){} })
-      .catch(e => { try { log('SW Fehler: ' + e.message, 'warn'); } catch(e2){} });
+      .then(() => console.log('[PWA] Service Worker aktiv'))
+      .catch(e => console.warn('[PWA] SW Fehler:', e.message));
   });
 }
+
+// iOS detection
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredInstallPrompt = e;
-  // Only show if logged in and not dismissed
   const dismissed = localStorage.getItem('pwa_dismissed');
   if (!dismissed && currentUser) {
+    // Android/Chrome: show install button
+    document.getElementById('pwa-install-btn').style.display = 'inline-flex';
+    document.getElementById('pwa-banner-title').textContent = 'Als App installieren';
+    document.getElementById('pwa-banner-sub').textContent = 'Offline verfügbar + Homescreen-Icon';
     setTimeout(() => document.getElementById('pwa-banner').classList.add('show'), 3000);
   }
 });
+
+// iOS: no beforeinstallprompt — show manual instructions
+if (isIOS && !isInStandaloneMode) {
+  const dismissed = localStorage.getItem('pwa_dismissed');
+  if (!dismissed) {
+    setTimeout(() => {
+      if (currentUser) {
+        document.getElementById('pwa-banner-title').textContent = 'Zum Homescreen hinzufügen';
+        document.getElementById('pwa-banner-sub').textContent = 'Safari: Teilen → Zum Home-Bildschirm';
+        document.getElementById('pwa-install-btn').style.display = 'none';
+        document.getElementById('pwa-banner').classList.add('show');
+      }
+    }, 3000);
+  }
+}
 
 window.installPWA = async () => {
   if (!deferredInstallPrompt) return;
