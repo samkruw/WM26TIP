@@ -1,0 +1,42 @@
+{
+  "name": "Panini WM 2026 Scanner",
+  "short_name": "Panini 2026",
+  "description": "Scanne und verwalte deine Panini WM 2026 Sticker-Sammlung",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0f1117",
+  "theme_color": "#e8b84b",
+  "orientation": "portrait-primary",
+  "lang": "de",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["sports", "utilities"],
+  "prefer_related_applications": false
+}
