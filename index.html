@@ -259,6 +259,49 @@
   .review-chip.trade-no{background:var(--surface2);color:var(--muted);border-color:var(--border);}
   .review-add-input:focus{border-color:var(--accent);}
 
+  /* SCAN FRAME */
+  .scan-frame {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%; max-width: 340px;
+    aspect-ratio: 16/7;
+    border: 3px solid var(--accent);
+    border-radius: 10px;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+  }
+  .scan-frame::before,.scan-frame::after {
+    content:'';position:absolute;width:22px;height:22px;border-color:var(--accent);border-style:solid;
+  }
+  .scan-frame::before { top:-3px;left:-3px;border-width:3px 0 0 3px;border-radius:6px 0 0 0; }
+  .scan-frame::after  { bottom:-3px;right:-3px;border-width:0 3px 3px 0;border-radius:0 0 6px 0; }
+  .scan-frame-label {
+    position: absolute;
+    bottom: -28px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.85);
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+
+  /* QUICK ENTRY KEYBOARD */
+  .quick-modal { position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:800;display:none;align-items:flex-end;justify-content:center; }
+  .quick-modal.open { display:flex; }
+  .quick-box { background:var(--surface);border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:480px; }
+  .quick-title { font-size:14px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between; }
+  .quick-display { background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:22px;font-weight:800;letter-spacing:2px;min-height:52px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+  .quick-chip { background:var(--accent);color:#000;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer; }
+  .quick-team-row { display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:8px;max-height:140px;overflow-y:auto; }
+  .quick-team-btn { padding:7px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .12s; }
+  .quick-team-btn:hover,.quick-team-btn.active { background:var(--accent);color:#000;border-color:var(--accent); }
+  .quick-numpad { display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px; }
+  .quick-num { padding:12px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-weight:700;cursor:pointer;text-align:center;transition:all .1s; }
+  .quick-num:active { background:var(--accent);color:#000; }
+  .quick-num.del { background:rgba(231,76,60,.15);color:var(--red); }
+  .quick-num.save { background:var(--green);color:#fff;grid-column:span 2; }
+
   /* MOBILE */
   @media(max-width:600px){
     .stats-row{grid-template-columns:repeat(2,1fr);}
@@ -360,6 +403,7 @@
       <div class="queue-wrap" id="queue-wrap"></div>
       <div class="btn-row">
         <button class="btn" id="scan-btn" onclick="startBatchScan()" disabled>🔍 Alle scannen</button>
+        <button class="btn secondary" onclick="openQuickEntry()">⌨️ Schnelleingabe</button>
         <button class="btn secondary" onclick="openManual()">✏️ Manuell</button>
         <button class="btn secondary sm" onclick="clearQueue()">✕ Queue</button>
       </div>
@@ -524,20 +568,58 @@
   </div>
 </div>
 
+<!-- QUICK ENTRY KEYBOARD -->
+<div class="quick-modal" id="quick-modal">
+  <div class="quick-box">
+    <div class="quick-title">
+      ⌨️ Schnelleingabe
+      <button class="btn secondary sm" onclick="closeQuickEntry()">✕</button>
+    </div>
+    <div class="quick-display" id="quick-display">
+      <span style="color:var(--muted);font-size:13px;font-weight:400">Team wählen → Nummer drücken</span>
+    </div>
+    <div class="quick-team-row" id="quick-team-row"></div>
+    <div class="quick-numpad">
+      <div class="quick-num" onclick="quickNum('1')">1</div>
+      <div class="quick-num" onclick="quickNum('2')">2</div>
+      <div class="quick-num" onclick="quickNum('3')">3</div>
+      <div class="quick-num" onclick="quickNum('4')">4</div>
+      <div class="quick-num" onclick="quickNum('5')">5</div>
+      <div class="quick-num" onclick="quickNum('6')">6</div>
+      <div class="quick-num" onclick="quickNum('7')">7</div>
+      <div class="quick-num" onclick="quickNum('8')">8</div>
+      <div class="quick-num" onclick="quickNum('9')">9</div>
+      <div class="quick-num" onclick="quickNum('0')">0</div>
+      <div class="quick-num del" onclick="quickDel()">⌫</div>
+      <div class="quick-num save" onclick="quickSave()">✅ Speichern</div>
+      <div class="quick-num" onclick="quickClear()" style="color:var(--muted)">C</div>
+    </div>
+  </div>
+</div>
+
 <!-- CAMERA MODAL -->
 <div class="camera-modal" id="camera-modal">
   <div class="video-wrap">
     <video id="camera-video" autoplay playsinline muted></video>
     <canvas id="camera-canvas"></canvas>
-    <div class="camera-hint-bar" id="camera-hint">📷 Sticker hinhalten → Auslöser drücken</div>
+    <canvas id="camera-crop-canvas" style="display:none"></canvas>
+    <!-- Scan frame — only this area is analysed -->
+    <div class="scan-frame" id="scan-frame">
+      <div class="scan-frame-label">Sticker-Code in Rahmen halten</div>
+    </div>
+    <div class="camera-hint-bar" id="camera-hint">📷 Auslöser drücken</div>
     <div class="camera-scan-overlay" id="camera-scan-overlay">
-      <span class="spinner white" style="width:28px;height:28px;border-width:3px"></span>KI analysiert...
+      <span class="spinner white" style="width:28px;height:28px;border-width:3px"></span>
+      <span style="margin-top:8px">OCR läuft...</span>
     </div>
   </div>
   <div class="camera-controls">
     <div class="camera-counter" id="camera-counter">0 gescannt</div>
     <button class="shutter-btn" id="shutter-btn" onclick="captureAndScan()">📸</button>
-    <button class="camera-close-btn" onclick="closeLiveCamera()">✕</button>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+      <button class="camera-close-btn" onclick="closeLiveCamera()">✕</button>
+      <button style="background:rgba(255,255,255,.12);border:none;border-radius:8px;padding:5px 8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="closeLiveCamera();openQuickEntry()">⌨️ Tippen</button>
+    </div>
   </div>
 </div>
 <div class="camera-flash-overlay" id="camera-flash"></div>
@@ -687,6 +769,8 @@ onAuthStateChanged(auth, async user => {
     subscribeData();
     refreshAll();
     log('Angemeldet: ' + user.email, 'success');
+    // Preload Tesseract in background so first scan is instant
+    setTimeout(() => getTesseractWorker().catch(()=>{}), 1500);
   } else {
     currentUser = null;
     if (unsubSnap) { unsubSnap(); unsubSnap = null; }
@@ -896,8 +980,10 @@ async function getTesseractWorker() {
   log('Tesseract wird geladen...', 'warn');
   tesseractWorker = await Tesseract.createWorker('eng', 1, { logger: ()=>{} });
   await tesseractWorker.setParameters({
-    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 \n',
-    tessedit_pageseg_mode: '6',
+    // Tight whitelist: only letters+digits needed for RSA1, GER3 etc.
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    tessedit_pageseg_mode: '6',   // uniform block
+    tessedit_ocr_engine_mode: '1' // LSTM only — faster
   });
   log('Tesseract bereit ✓', 'success');
   return tesseractWorker;
@@ -961,40 +1047,232 @@ function preprocessCanvas(canvas) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-// Double-scan: run OCR twice and merge results for higher accuracy
+// ============================================================
+// HEFT-SCAN: Confidence-based detection
+// Low confidence = sticker photo covers the printed text = FILLED
+// High confidence = clean printed text on white = EMPTY slot
+// ============================================================
 async function doubleScan(source) {
   const worker = await getTesseractWorker();
-  // First pass: normal
-  const r1 = await worker.recognize(source);
-  const ids1 = parseStickerCodes(r1.data.text);
-  // Second pass: increase brightness
+
+  // Convert File to canvas if needed
   let canvas;
   if (source instanceof HTMLCanvasElement) {
     canvas = source;
   } else {
-    // File → canvas
     canvas = document.createElement('canvas');
     const img = await createImageBitmap(source);
     canvas.width = img.width; canvas.height = img.height;
     canvas.getContext('2d').drawImage(img, 0, 0);
   }
-  // Clone canvas for second pass
-  const c2 = document.createElement('canvas');
-  c2.width = canvas.width; c2.height = canvas.height;
-  const ctx2 = c2.getContext('2d');
-  ctx2.drawImage(canvas, 0, 0);
-  // Invert colors for second pass (catches light text on dark bg)
-  const id2 = ctx2.getImageData(0, 0, c2.width, c2.height);
-  for (let i = 0; i < id2.data.length; i += 4) {
-    id2.data[i] = 255 - id2.data[i];
-    id2.data[i+1] = 255 - id2.data[i+1];
-    id2.data[i+2] = 255 - id2.data[i+2];
+
+  if (scanMode === 'have') {
+    // HEFT-SCAN MODE: detect FILLED sticker slots
+    return await detectFilledStickers(canvas, worker);
+  } else {
+    // NORMAL MODE: just read all visible codes
+    const r = await worker.recognize(canvas);
+    return parseStickerCodes(r.data.text);
   }
-  ctx2.putImageData(id2, 0, 0);
-  const r2 = await worker.recognize(c2);
-  const ids2 = parseStickerCodes(r2.data.text);
-  // Merge both passes
-  return [...new Set([...ids1, ...ids2])];
+}
+
+async function detectFilledStickers(canvas, worker) {
+  // LOGIC: Wenn OCR den Code LESEN kann → leer (gedruckter Text sichtbar)
+  //        Wenn OCR nichts/wenig liest   → eingeklebt (Foto überdeckt Text)
+
+  // Step 1: Get ALL team codes that SHOULD be on this page
+  // We detect this by doing a full OCR pass and finding which codes ARE readable
+  const result = await worker.recognize(canvas);
+  const words = result.data.words || [];
+  log('Wörter erkannt: ' + words.length);
+
+  // Step 2: Find all clearly readable sticker codes (= EMPTY slots)
+  // These are codes where BOTH team code AND number are clearly visible
+  const readableIds = new Set();
+  const teamWords = words.filter(w => {
+    const t = w.text.trim().toUpperCase();
+    return TEAMS.some(tm => tm.code === t) && w.confidence > 60;
+  });
+  const numWords = words.filter(w => {
+    return /^[0-9]{1,2}$/.test(w.text.trim()) && w.confidence > 60;
+  });
+
+  for (const tw of teamWords) {
+    const tx = (tw.bbox.x0 + tw.bbox.x1) / 2;
+    const ty = (tw.bbox.y0 + tw.bbox.y1) / 2;
+    let bestNum = null, bestDist = Infinity;
+    for (const nw of numWords) {
+      const nx = (nw.bbox.x0 + nw.bbox.x1) / 2;
+      const ny = (nw.bbox.y0 + nw.bbox.y1) / 2;
+      const dist = Math.sqrt((nx-tx)**2 + (ny-ty)**2);
+      const maxDist = canvas.width * 0.12; // max 12% of image width apart
+      if (dist < bestDist && dist < maxDist) { bestDist = dist; bestNum = nw; }
+    }
+    if (bestNum) {
+      const id = tw.text.trim().toUpperCase() + parseInt(bestNum.text.trim());
+      if (ALL_STICKER_IDS.includes(id)) readableIds.add(id);
+    }
+  }
+
+  log('Lesbar (leer): ' + [...readableIds].join(', '));
+
+  // Step 3: Which team is on this page? (take most common team code)
+  const teamCounts = {};
+  teamWords.forEach(w => {
+    const code = w.text.trim().toUpperCase();
+    teamCounts[code] = (teamCounts[code] || 0) + 1;
+  });
+  const dominantTeam = Object.entries(teamCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+
+  if (!dominantTeam) {
+    log('Kein Team erkannt', 'warn');
+    return [];
+  }
+
+  log('Dominantes Team: ' + dominantTeam);
+
+  // Step 4: ALL stickers for this team that are NOT readable = filled
+  const team = TEAMS.find(t => t.code === dominantTeam);
+  if (!team) return [];
+
+  const allTeamIds = team.code === '00' ? ['00'] :
+    [...Array(team.count)].map((_, i) => team.code + (i + 1));
+
+  const filledIds = allTeamIds.filter(id => !readableIds.has(id));
+
+  log('Eingeklebt (' + filledIds.length + '): ' + filledIds.join(', '), 'success');
+  log('Leer (' + (allTeamIds.length - filledIds.length) + '): ' + allTeamIds.filter(id => readableIds.has(id)).join(', '));
+
+  return filledIds;
+}
+
+// ============================================================
+// SCAN FRAME CROP — only analyse the marked area
+// ============================================================
+function cropToScanFrame(sourceCanvas) {
+  const frame = document.getElementById('scan-frame');
+  const video = document.getElementById('camera-video');
+  if (!frame || !video) return sourceCanvas;
+
+  // Get frame position relative to video
+  const videoRect = video.getBoundingClientRect();
+  const frameRect = frame.getBoundingClientRect();
+
+  // Scale factors from display to actual video pixels
+  const scaleX = sourceCanvas.width / videoRect.width;
+  const scaleY = sourceCanvas.height / videoRect.height;
+
+  // Frame coords in video pixel space
+  const x = (frameRect.left - videoRect.left) * scaleX;
+  const y = (frameRect.top  - videoRect.top)  * scaleY;
+  const w = frameRect.width  * scaleX;
+  const h = frameRect.height * scaleY;
+
+  // Add 10% padding around frame for safety
+  const pad = w * 0.10;
+  const cx = Math.max(0, x - pad);
+  const cy = Math.max(0, y - pad);
+  const cw = Math.min(sourceCanvas.width  - cx, w + pad*2);
+  const ch = Math.min(sourceCanvas.height - cy, h + pad*2);
+
+  const crop = document.getElementById('camera-crop-canvas') || document.createElement('canvas');
+  crop.width  = cw;
+  crop.height = ch;
+  crop.getContext('2d').drawImage(sourceCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
+  preprocessCanvas(crop);
+  return crop;
+}
+
+// ============================================================
+// QUICK ENTRY KEYBOARD
+// ============================================================
+let quickTeam = null;
+let quickNums = '';
+let quickAdded = [];
+
+window.openQuickEntry = () => {
+  quickTeam = null; quickNums = ''; quickAdded = [];
+  renderQuickTeams();
+  updateQuickDisplay();
+  document.getElementById('quick-modal').classList.add('open');
+};
+
+window.closeQuickEntry = () => {
+  document.getElementById('quick-modal').classList.remove('open');
+  if (quickAdded.length > 0) {
+    const res = applyStickers(quickAdded);
+    saveData(); refreshAll();
+    showToast(quickAdded.length + ' Sticker gespeichert ✓', 'success');
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('result-summary').innerHTML =
+      `Schnelleingabe: <strong style="color:var(--green)">${res.new.length} neu</strong> · <strong style="color:var(--accent)">${res.dupe.length} doppelt</strong>`;
+    document.getElementById('result-chips').innerHTML =
+      [...res.new.map(id=>`<span class="chip new">${id}</span>`),
+       ...res.dupe.map(id=>`<span class="chip dupe">${id} ×${stickers[id]}</span>`)].join('');
+    quickAdded = [];
+  }
+};
+
+function renderQuickTeams() {
+  const row = document.getElementById('quick-team-row');
+  row.innerHTML = TEAMS.map(t =>
+    `<div class="quick-team-btn ${quickTeam===t.code?'active':''}" onclick="quickSelectTeam('${t.code}')">${t.code}</div>`
+  ).join('');
+}
+
+window.quickSelectTeam = code => {
+  quickTeam = code; quickNums = '';
+  renderQuickTeams();
+  updateQuickDisplay();
+};
+
+window.quickNum = n => {
+  if (!quickTeam) { showToast('Zuerst Team wählen', 'info'); return; }
+  if (quickNums.length >= 2) return; // max 2 digits
+  quickNums += n;
+  updateQuickDisplay();
+  // Auto-save if team has ≤9 stickers and 1 digit entered, or if 2 digits entered
+  const team = TEAMS.find(t => t.code === quickTeam);
+  if (team && ((team.count <= 9 && quickNums.length === 1) || quickNums.length === 2)) {
+    const id = quickTeam + quickNums;
+    if (ALL_STICKER_IDS.includes(id)) {
+      setTimeout(() => quickSave(), 150); // brief delay so user sees the number
+    }
+  }
+};
+
+window.quickDel = () => {
+  quickNums = quickNums.slice(0, -1);
+  updateQuickDisplay();
+};
+
+window.quickClear = () => {
+  quickNums = '';
+  updateQuickDisplay();
+};
+
+window.quickSave = () => {
+  if (!quickTeam || !quickNums) return;
+  const id = quickTeam + quickNums;
+  if (!ALL_STICKER_IDS.includes(id)) {
+    showToast(id + ' — ungültig', 'error');
+    quickNums = ''; updateQuickDisplay(); return;
+  }
+  quickAdded.push(id);
+  // Visual feedback
+  const alreadyHave = stickers[id] > 0;
+  showToast(id + (alreadyHave ? ' 🔁 doppelt' : ' ✓ neu'), alreadyHave ? 'info' : 'success');
+  quickNums = '';
+  updateQuickDisplay();
+};
+
+function updateQuickDisplay() {
+  const disp = document.getElementById('quick-display');
+  const current = quickTeam ? (quickTeam + (quickNums || '_')) : '—';
+  const added = quickAdded.slice(-8).map(id =>
+    `<span class="quick-chip">${id}</span>`
+  ).join('');
+  disp.innerHTML = `<span style="font-size:20px;color:var(--accent)">${current}</span>${added}`;
 }
 
 // ============================================================
@@ -1032,10 +1310,11 @@ window.captureAndScan = async () => {
     cvs.width=vid.videoWidth; cvs.height=vid.videoHeight;
     const ctx = cvs.getContext('2d');
     ctx.drawImage(vid,0,0);
-    // Enhance contrast for better OCR
-    preprocessCanvas(cvs);
 
-    const ids = await scanCanvas(cvs);
+    // Crop to scan frame area for faster + more accurate OCR
+    const cropCvs = cropToScanFrame(cvs);
+
+    const ids = await scanCanvas(cropCvs);
     if (!ids.length) { hint.textContent='❌ Nichts erkannt — näher heranhalten'; }
     else {
       // Pause camera overlay, show review
