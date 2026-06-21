@@ -243,6 +243,22 @@
   .team-card.complete{border-color:var(--green);background:rgba(39,174,96,.06);}
   .team-complete-badge{position:absolute;top:6px;right:6px;font-size:14px;}
 
+  /* REVIEW MODAL */
+  .review-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:800;display:none;align-items:flex-end;justify-content:center;}
+  .review-modal.open{display:flex;}
+  .review-box{background:var(--surface);border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:560px;max-height:80vh;overflow-y:auto;}
+  .review-title{font-size:15px;font-weight:800;margin-bottom:4px;}
+  .review-sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .review-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;}
+  .review-chip{padding:7px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:5px;user-select:none;}
+  .review-chip.keep{background:rgba(39,174,96,.15);color:var(--green);border-color:var(--green);}
+  .review-chip.remove{background:rgba(231,76,60,.1);color:var(--muted);border-color:var(--border);text-decoration:line-through;opacity:.5;}
+  .review-add-row{display:flex;gap:8px;margin-bottom:14px;}
+  .review-add-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;font-weight:700;outline:none;text-transform:uppercase;}
+  .review-chip.trade{background:rgba(232,184,75,.15);color:var(--accent);border-color:var(--accent);}
+  .review-chip.trade-no{background:var(--surface2);color:var(--muted);border-color:var(--border);}
+  .review-add-input:focus{border-color:var(--accent);}
+
   /* MOBILE */
   @media(max-width:600px){
     .stats-row{grid-template-columns:repeat(2,1fr);}
@@ -362,10 +378,6 @@
       <div id="result-summary" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
       <div class="result-chips" id="result-chips"></div>
     </div>
-    <div class="card">
-      <div class="card-title">Log</div>
-      <div class="scan-log" id="scan-log"><span class="log-line">Bereit...</span></div>
-    </div>
   </div>
 
   <!-- COLLECTION -->
@@ -413,6 +425,7 @@
       <div class="btn-row">
         <button class="btn secondary" onclick="exportList()">📋 Kopieren</button>
         <button class="wa-btn" onclick="shareWhatsApp()">📲 WhatsApp teilen</button>
+        <button class="btn secondary" onclick="copyInviteLink()">🔗 Einladungslink</button>
         <button class="btn secondary" onclick="exportJSON()">💾 JSON</button>
       </div>
     </div>
@@ -455,14 +468,61 @@
     <div class="card">
       <div class="card-title">Konto</div>
       <div id="account-info" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">Name / Kontakt für Tauschbörse</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" class="form-input" id="display-name-input"
+            placeholder="z.B. Sandro oder 079 123 45 67"
+            style="font-size:14px">
+          <button class="btn sm" onclick="saveDisplayName()">💾</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">
+          Erscheint im WhatsApp-Link damit Tauschpartner dich kontaktieren können
+        </div>
+      </div>
       <div class="btn-row">
         <button class="btn danger sm" onclick="resetAll()">🗑️ Alle meine Daten löschen</button>
         <button class="btn secondary sm" onclick="doLogout()">🚪 Logout</button>
       </div>
     </div>
+    <div class="card">
+      <div class="card-title">Aktivitäts-Log</div>
+      <div class="scan-log" id="scan-log"><span class="log-line">Bereit...</span></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn secondary sm" onclick="clearLog()">🗑️ Log leeren</button>
+      </div>
+    </div>
   </div>
 
 </main>
+
+<!-- REVIEW MODAL — confirm/edit scan results before saving -->
+<div class="review-modal" id="review-modal">
+  <div class="review-box">
+    <div class="review-title">Scan-Ergebnis prüfen</div>
+    <div class="review-sub">Tippe auf einen Sticker um ihn zu entfernen. Fehlende ergänzen und dann speichern.</div>
+    <div class="review-grid" id="review-grid"></div>
+
+    <!-- DUPLICATE MARKING -->
+    <div id="review-dupe-section" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">
+        🔁 Doppelte — zum Tauschen markieren
+      </div>
+      <div class="review-grid" id="review-dupe-grid"></div>
+    </div>
+
+    <div class="review-add-row">
+      <input class="review-add-input" id="review-add-input" placeholder="Code ergänzen z.B. RSA5"
+        onkeydown="if(event.key==='Enter')reviewAddSticker()"
+        oninput="this.value=this.value.toUpperCase()">
+      <button class="btn sm" onclick="reviewAddSticker()">＋ Hinzufügen</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn green" onclick="reviewConfirm()" id="review-confirm-btn">✅ Speichern</button>
+      <button class="btn secondary" onclick="reviewCancel()">Abbrechen</button>
+    </div>
+  </div>
+</div>
 
 <!-- CAMERA MODAL -->
 <div class="camera-modal" id="camera-modal">
@@ -609,12 +669,18 @@ let activeCollectionId = null;
 // ============================================================
 // AUTH
 // ============================================================
+let authMode = new URLSearchParams(window.location.search).get('register') === '1' ? 'register' : 'login';
+
 onAuthStateChanged(auth, async user => {
   document.getElementById('loading-screen').classList.add('hidden');
   if (user) {
     currentUser = user;
     document.getElementById('nav-user').textContent = user.email;
     document.getElementById('account-info').textContent = 'Angemeldet: ' + user.email;
+    // Load saved display name
+    const savedName = localStorage.getItem('panini_display_name');
+    const nameInput = document.getElementById('display-name-input');
+    if (nameInput) nameInput.value = savedName || user.email;
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     await loadCollections();
@@ -626,10 +692,15 @@ onAuthStateChanged(auth, async user => {
     if (unsubSnap) { unsubSnap(); unsubSnap = null; }
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
+    // Apply register mode if set
+    if (authMode === 'register') {
+      document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', i===1));
+      document.getElementById('auth-btn').textContent = 'Registrieren';
+      document.getElementById('auth-switch-text').innerHTML = "Bereits registriert? <a href='#' onclick='switchAuthTab(\"login\");return false' style='color:var(--accent)'>Anmelden</a>";
+    }
   }
 });
 
-let authMode = 'login';
 window.switchAuthTab = m => {
   authMode = m;
   document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&m==='login')||(i===1&&m==='register')));
@@ -779,12 +850,22 @@ window.startBatchScan = async () => {
       const ids = await scanFile(item.file);
       if (!ids.length) { updQueue(item.id,'error','Nichts'); log(item.file.name+': Nichts','err'); }
       else {
-        const res = applyStickers(ids);
-        totNew+=res.new.length; totDupe+=res.dupe.length;
-        const s=[res.new.length?'+'+res.new.length+' neu':'',res.dupe.length?res.dupe.length+' doppelt':''].filter(Boolean).join(' · ');
-        updQueue(item.id,'done',s); log(item.file.name+': '+s,'success');
-        res.new.forEach(id=>chips.push(`<span class="chip new">${id}</span>`));
-        res.dupe.forEach(id=>chips.push(`<span class="chip dupe">${id} ×${stickers[id]}</span>`));
+        // Show review modal — user confirms before saving
+        const review = await showReviewModal(ids, item.file.name);
+        if (review.kept.length > 0) {
+          const res = applyStickers(review.kept);
+          review.trades.forEach(id => {
+            if (stickers[id] >= 1) stickers[id]++;
+            if (activeCollectionId && collections[activeCollectionId]) collections[activeCollectionId].stickers = stickers;
+          });
+          if (review.trades.size > 0) showToast(review.trades.size + ' als Tausch markiert 🔁', 'info');
+          totNew+=res.new.length; totDupe+=res.dupe.length;
+          const s=[res.new.length?'+'+res.new.length+' neu':'',res.dupe.length?res.dupe.length+' doppelt':''].filter(Boolean).join(' · ');
+          updQueue(item.id,'done',s); log(item.file.name+': '+s,'success');
+          review.kept.forEach(id=>chips.push(`<span class="chip new">${id}</span>`));
+        } else {
+          updQueue(item.id,'done','Übersprungen');
+        }
       }
     } catch(e) { updQueue(item.id,'error',e.message.slice(0,35)); log('Fehler: '+e.message,'err'); }
     done++;
@@ -957,12 +1038,27 @@ window.captureAndScan = async () => {
     const ids = await scanCanvas(cvs);
     if (!ids.length) { hint.textContent='❌ Nichts erkannt — näher heranhalten'; }
     else {
-      const res=applyStickers(ids); camCount++;
-      document.getElementById('camera-counter').textContent=camCount+' gescannt';
-      updateStats();
-      const s=[res.new.length?'+'+res.new.length+' neu':'',res.dupe.length?res.dupe.length+' doppelt':''].filter(Boolean).join(' · ');
-      hint.textContent='✅ '+s+' — weiter scannen';
-      log('Kamera: '+s,'success');
+      // Pause camera overlay, show review
+      overlay.classList.remove('show');
+      document.getElementById('shutter-btn').classList.remove('scanning');
+      const review = await showReviewModal(ids, 'Kamera-Scan');
+      if (review.kept.length > 0) {
+        const res=applyStickers(review.kept); camCount++;
+        review.trades.forEach(id => {
+          if (stickers[id] >= 1) stickers[id]++;
+          if (activeCollectionId && collections[activeCollectionId]) collections[activeCollectionId].stickers = stickers;
+        });
+        if (review.trades.size > 0) showToast(review.trades.size + ' als Tausch markiert 🔁', 'info');
+        document.getElementById('camera-counter').textContent=camCount+' gescannt';
+        updateStats();
+        const s=[res.new.length?'+'+res.new.length+' neu':'',res.dupe.length?res.dupe.length+' doppelt':''].filter(Boolean).join(' · ');
+        hint.textContent='✅ '+s+' — weiter scannen';
+        log('Kamera: '+s,'success');
+      } else {
+        hint.textContent='⏭ Übersprungen — weiter scannen';
+      }
+      camScanning=false;
+      // finally still runs but camScanning is already false — safe
     }
   } catch(e) { hint.textContent='⚠️ '+e.message.slice(0,50); log('Kamera-Fehler: '+e.message,'err'); }
   finally { camScanning=false; document.getElementById('shutter-btn').classList.remove('scanning'); overlay.classList.remove('show'); }
@@ -1164,6 +1260,13 @@ window.adjDupe = (id,d) => {
 // ============================================================
 // EXPORT
 // ============================================================
+window.copyInviteLink = () => {
+  const url = 'https://samkruw.github.io/WM26TIP/?register=1';
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Einladungslink kopiert ✓', 'success');
+  });
+};
+
 window.exportList=()=>{
   const missing=ALL_STICKER_IDS.filter(id=>!stickers[id]);
   const dupes=Object.entries(stickers).filter(([k,v])=>v>1).map(([k,v])=>`${k}(×${v-1})`);
@@ -1459,35 +1562,170 @@ window.shareWhatsApp = () => {
     .map(([code, nums]) => `${code}: ${nums.join(',')}`)
     .join(' | ');
 
-  const text = `⚽ *Panini WM 2026 Tauschbörse*
+  // Get display name — use saved name or email
+  const displayName = localStorage.getItem('panini_display_name') || currentUser?.email || '';
+  const contactLine = displayName ? `\n📧 Kontakt: ${displayName}` : '';
 
-` +
-    `✅ Gesammelt: ${Object.keys(stickers).length}/${TOTAL}
+  const inviteUrl = 'https://samkruw.github.io/WM26TIP/?register=1';
 
-` +
-    `❌ *SUCHE* (${missing.length}):
+  const text = `⚽ *Panini WM 2026 Tauschbörse*${contactLine}
+
+✅ Gesammelt: ${Object.keys(stickers).length}/${TOTAL}
+
+❌ *SUCHE* (${missing.length}):
 ${missingText}
 
-` +
-    `🔁 *BIETE* (Doppelte):
+🔁 *BIETE* (Doppelte):
 ${dupes.join(', ') || 'Keine'}
 
-` +
-    `📱 App: samkruw.github.io/WM26TIP`;
+📱 Mitmachen & tauschen:
+${inviteUrl}`;
 
   const url = 'https://wa.me/?text=' + encodeURIComponent(text);
   window.open(url, '_blank');
 };
 
 // ============================================================
-// ENHANCED IMAGE PREPROCESSING (better OCR)
+// REVIEW MODAL — confirm/edit scan results + mark dupes for trading
 // ============================================================
+let reviewResolve = null;
+let reviewIds = [];
+let reviewTradeIds = new Set(); // ids marked as "zum Tauschen"
+
+function showReviewModal(ids, source) {
+  return new Promise(resolve => {
+    reviewResolve = resolve;
+    reviewIds = [...ids];
+    reviewTradeIds = new Set();
+    renderReviewGrid();
+    renderReviewDupeSection();
+    document.getElementById('review-modal').classList.add('open');
+    document.getElementById('review-add-input').value = '';
+    updateReviewBtn();
+  });
+}
+
+function renderReviewGrid() {
+  const grid = document.getElementById('review-grid');
+  if (!reviewIds.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:13px">Keine Sticker erkannt</div>';
+    return;
+  }
+  grid.innerHTML = reviewIds.map(id => {
+    const alreadyHave = stickers[id] > 0;
+    return `<div class="review-chip keep" id="rc_${id}" onclick="reviewToggle('${id}')">
+      ✓ ${id}${alreadyHave ? ' 🔁' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderReviewDupeSection() {
+  // Show dupe section only for stickers already in collection
+  const dupes = reviewIds.filter(id => stickers[id] > 0);
+  const section = document.getElementById('review-dupe-section');
+  const grid = document.getElementById('review-dupe-grid');
+  if (!dupes.length) { section.style.display='none'; return; }
+  section.style.display = 'block';
+  grid.innerHTML = dupes.map(id => `
+    <div class="review-chip trade-no" id="trade_${id}" onclick="reviewToggleTrade('${id}')">
+      🔁 ${id} zum Tauschen
+    </div>`).join('');
+}
+
+window.reviewToggle = id => {
+  const el = document.getElementById('rc_' + id);
+  if (!el) return;
+  el.classList.toggle('keep');
+  el.classList.toggle('remove');
+  el.innerHTML = el.classList.contains('keep')
+    ? '✓ ' + id + (stickers[id] > 0 ? ' 🔁' : '')
+    : '✕ ' + id;
+  // Also update dupe section visibility
+  renderReviewDupeSection();
+  updateReviewBtn();
+};
+
+window.reviewToggleTrade = id => {
+  const el = document.getElementById('trade_' + id);
+  if (!el) return;
+  if (reviewTradeIds.has(id)) {
+    reviewTradeIds.delete(id);
+    el.classList.remove('trade');
+    el.classList.add('trade-no');
+    el.innerHTML = '🔁 ' + id + ' zum Tauschen';
+  } else {
+    reviewTradeIds.add(id);
+    el.classList.remove('trade-no');
+    el.classList.add('trade');
+    el.innerHTML = '✅ ' + id + ' — biete zum Tauschen';
+  }
+  updateReviewBtn();
+};
+
+window.reviewAddSticker = () => {
+  const input = document.getElementById('review-add-input');
+  const code = input.value.trim().toUpperCase();
+  if (!code) return;
+  if (!ALL_STICKER_IDS.includes(code)) { showToast(code + ' — ungültiger Code', 'error'); return; }
+  if (reviewIds.includes(code)) { showToast(code + ' bereits in der Liste', 'info'); input.value=''; return; }
+  reviewIds.push(code);
+  input.value = '';
+  renderReviewGrid();
+  renderReviewDupeSection();
+  updateReviewBtn();
+};
+
+function updateReviewBtn() {
+  const kept = getKeptIds();
+  const trades = reviewTradeIds.size;
+  const btn = document.getElementById('review-confirm-btn');
+  if (btn) btn.textContent = `✅ ${kept.length} speichern${trades > 0 ? ' · ' + trades + ' tauschen' : ''}`;
+}
+
+function getKeptIds() {
+  return reviewIds.filter(id => {
+    const el = document.getElementById('rc_' + id);
+    return el && el.classList.contains('keep');
+  });
+}
+
+window.reviewConfirm = () => {
+  const kept = getKeptIds();
+  const trades = new Set(reviewTradeIds);
+  document.getElementById('review-modal').classList.remove('open');
+  if (reviewResolve) { reviewResolve({ kept, trades }); reviewResolve = null; }
+};
+
+window.reviewCancel = () => {
+  document.getElementById('review-modal').classList.remove('open');
+  if (reviewResolve) { reviewResolve({ kept: [], trades: new Set() }); reviewResolve = null; }
+};
+
+// Close on backdrop click
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('review-modal')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('review-modal')) reviewCancel();
+  });
+});
 
 // ============================================================
 // LOG & TOAST
 // ============================================================
+window.saveDisplayName = () => {
+  const val = document.getElementById('display-name-input').value.trim();
+  if (!val) { showToast('Bitte Name eingeben', 'error'); return; }
+  localStorage.setItem('panini_display_name', val);
+  showToast('Name gespeichert ✓', 'success');
+};
+
+function clearLog(){
+  const el=document.getElementById('scan-log');
+  if(el) el.innerHTML='<span class="log-line">Log geleert.</span>';
+}
+
 function log(msg,type=''){
   const el=document.getElementById('scan-log');
+  if (!el) { console.log('[LOG]', type, msg); return; }
   const l=document.createElement('div');l.className='log-line '+type;
   l.textContent='['+new Date().toLocaleTimeString('de-CH')+'] '+msg;
   el.appendChild(l);el.scrollTop=el.scrollHeight;
